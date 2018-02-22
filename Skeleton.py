@@ -33,7 +33,7 @@ op = PyOP.OpenPose(net_pose_size, net_face_hands_size, output_size, model, model
 class Skeleton:
     def __init__(self, image):
         # Member initialization
-        self.origin = image
+        self.origin = image.copy()
         self.keypoints = {}
         self.img = None
         # Performs computations
@@ -136,9 +136,12 @@ class Skeleton:
 
     # Crops and displays the skeleton, with or without the background generating image
     def show(self, color=(255, 255, 255), background=False, save=False, savename="skeleton"):
+        if self.img is not None:
+            print("Warning! show() cannot be used for transformed and normalized images. Use display() instead.")
+            return None
         # Sets the background
         if background:
-            image = self.origin
+            image = self.origin.copy()
         else:
             height, width, channels = self.origin.shape
             image = np.zeros((height, width, channels), np.uint8)
@@ -159,15 +162,21 @@ class Skeleton:
     # Generates a B/W image and stores it
     def generate_image(self):
         # Sets the background
-        height, width, channels = self.origin.shape
-        self.img = np.zeros((height, width, channels), np.uint8)
+        #height, width, channels = self.origin.shape
+        #self.img = np.zeros((height, width, channels), np.uint8)
+        self.img = self.origin.copy()
         box = self.bounding_box()  # Fetches the bounding box dimensions
         # Iterates for each non-missing point
         for name, keypoint in self.nonmissing_keypoints().items():
-            cv2.circle(self.img, (int(keypoint.x), int(keypoint.y)), 3, (255, 255, 255), 5)
+            cv2.circle(self.img, (int(keypoint.x), int(keypoint.y)), 1, (0, 255, 255), 5)
             # cv2.putText(image, name, (int(keypoint.x), int(keypoint.y)), cv2.FONT_HERSHEY_SIMPLEX, 1, color)
         # Crops the image
-        self.img = self.img[box[1]:box[3], box[0]:box[2]]
+        self.img = self.img[box[1]:box[3], box[0]:box[2]].copy()
+
+    # Visualizes the skeleton image. To be used when the keypoints have already been normalized
+    def display(self):
+        cv2.imshow("im", self.img)
+        cv2.waitKey(0)
 
     # Cippitelli normalization
     def cippitelli_norm(self):
@@ -217,7 +226,7 @@ class Skeleton:
             self.keypoints[name] = kp
 
     # Returns a row array (1x20) of features for this skeleton as a dataset example
-    def get_example_record(self):
+    def as_feature(self):
         array = self.keypoints_to_array()
         # Deletes the final row corresponding to Torso.x and Torso.y (they are always zero)
         array = array[:-1, :]
