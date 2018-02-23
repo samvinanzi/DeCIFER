@@ -31,11 +31,12 @@ op = PyOP.OpenPose(net_pose_size, net_face_hands_size, output_size, model, model
 
 
 class Skeleton:
-    def __init__(self, image):
+    def __init__(self, image, id=0):
         # Member initialization
         self.origin = image.copy()
         self.keypoints = {}
         self.img = None
+        self.id = id
         # Performs computations
         self.prepare()
 
