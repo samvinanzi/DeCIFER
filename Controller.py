@@ -22,10 +22,12 @@ from os import listdir
 from os.path import isfile, join
 
 import pickle
+import csv
+import math
 
 
 class Controller:
-    def __init__(self, reload=False, path="/home/samuele/Research/datasets/CAD-60/data1/0512173548"):
+    def __init__(self, reload=False, path="/home/samuele/Research/datasets/CAD-60/data1/0512173548", persist=True):
         self.skeletons = []
         self.dataset = []
         self.dataset2d = []
@@ -37,9 +39,14 @@ class Controller:
             self.generate_dataset()
             self.do_pca()
             self.generate_clusters()
-            self.save()
+            if persist:
+                self.save()
         else:
-            self.load()
+            try:
+                self.load()
+            except Exception:
+                print("Error: failed to load Controller data.")
+                quit(-1)
 
     # Reads all images in a given folder and returns them as an array of images
     def load_imageset(self, path):
@@ -70,14 +77,10 @@ class Controller:
         # Removes the first, empty row
         self.dataset = dataset[1:]
 
-    # Performs dimensionality reduction from 20-D to 2-D or 3-D through PCA
-    def do_pca(self, dimensions=2):
-        # Sanity check
-        if dimensions != 2 and dimensions != 3:
-            print("Clustering error: dimensions must be either 2 or 3.")
-            return
+    # Performs dimensionality reduction from 20-D to 2-D through PCA
+    def do_pca(self):
         # PCA to reduce dimensionality to 2D
-        pca = PCA(n_components=dimensions).fit(self.dataset)
+        pca = PCA(n_components=2).fit(self.dataset)
         self.dataset2d = pca.transform(self.dataset).tolist()
 
     # Performs X-Means clustering on the provided dataset
@@ -124,27 +127,52 @@ class Controller:
         self.ax = pickle.load(open("objects/ax.p", "rb"))
 
     # Displays a human-friendly result of the clustering operation
-    def show_clustering(self):
+    def show_clustering(self, just_dots=False):
         # Sanity check
         if self.ax is None:
             print("Error: must generate clusters before trying to display them.")
             raise RuntimeError
-        # Create interactive plot
-        for skeleton in self.skeletons:
-            im = OffsetImage(skeleton.img, zoom=0.3)
-            coordinates = self.dataset2d[skeleton.id]
-            # Find the cluster id containing the skeleton (make it more pythonic)
-            index = -1
-            for i in range(len(self.clusters)):
-                if skeleton.id in self.clusters[i].skeleton_ids:
-                    index = i
-                    break
-            # Sanity check
-            if index == -1:
-                print("Error! Couldn't find cluster in which a skeleton belongs")
-                raise RuntimeError
-            color = self.clusters[index].color
-            ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
-            self.ax.add_artist(ab)
-            # ax.text(coordinates[0]+0.0015, coordinates[1]+0.005, skeleton.id, fontsize=25)
+        if not just_dots:
+            # Create interactive plot
+            for skeleton in self.skeletons:
+                im = OffsetImage(skeleton.img, zoom=0.3)
+                coordinates = self.dataset2d[skeleton.id]
+                # Find the cluster id containing the skeleton (make it more pythonic)
+                index = -1
+                for i in range(len(self.clusters)):
+                    if skeleton.id in self.clusters[i].skeleton_ids:
+                        index = i
+                        break
+                # Sanity check
+                if index == -1:
+                    print("Error! Couldn't find cluster in which a skeleton belongs")
+                    raise RuntimeError
+                color = self.clusters[index].color
+                ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
+                self.ax.add_artist(ab)
+                # ax.text(coordinates[0]+0.0015, coordinates[1]+0.005, skeleton.id, fontsize=25)
         plt.show()
+
+    # Saves a dataset as a csv
+    def save_csv(self):
+        file = open('csv/dataset.csv', 'w')
+        with file:
+            writer = csv.writer(file)
+            writer.writerows(self.dataset)
+
+    # Finds the closest centroid to a new skeletal sample
+    def find_closest_centroid(self, sample):
+        # Find the 2D coordinates of the new sample
+        expanded_dataset = np.vstack((self.dataset, sample.as_feature()))
+        pca = PCA(n_components=2).fit(expanded_dataset)
+        expanded_dataset2d = pca.transform(expanded_dataset).tolist()
+        sample2d = expanded_dataset2d[-1]
+        # Compute the minimum distance to a centroid
+        min_distance = float("inf")
+        closest_cluster = None
+        for cluster in self.clusters:
+            dist = math.hypot(sample2d[0] - cluster.centroid[0], sample2d[1] - cluster.centroid[1])
+            if dist < min_distance:
+                min_distance = dist
+                closest_cluster = cluster.id
+        return closest_cluster

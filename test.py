@@ -7,6 +7,7 @@ Sandbox script
 import cv2
 import time
 from Controller import Controller
+from Skeleton import Skeleton
 
 # Workstation webcamera resolution
 wrk_camera_width = 800
@@ -37,5 +38,8 @@ def get_camera_image():
         return None
 
 
-ctrl = Controller(reload=True)
-ctrl.show_clustering()
+#ctrl = Controller(reload=True)
+ctrl = Controller(reload=False, path="/home/samuele/Research/datasets/CAD-60/custom/jar/", persist=False)
+new_sample = Skeleton(cv2.imread("/home/samuele/Research/datasets/CAD-60/custom/RGB_248.png"), id=-1)
+print(ctrl.find_closest_centroid(new_sample))
+#ctrl.show_clustering()

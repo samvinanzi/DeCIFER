@@ -20,7 +20,7 @@ class Keypoint:
         return Keypoint(self.x - other.x, self.y - other.y, avg_confidence)
 
     def distance_to(self, other):
-        return math.sqrt(math.pow(self.x - other.x, 2) + math.pow(self.y - other.y, 2))
+        return math.hypot(self.x - other.x, self.y - other.y)   # Efficient distance between two points computation
 
     def median_with(self, other):
         x = (self.x + other.x) / 2
