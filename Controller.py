@@ -6,6 +6,7 @@ This class acts as a manager towards clusters and skeletons.
 
 from Skeleton import Skeleton
 from Cluster import Cluster
+from Intention import Intention
 
 import cv2
 import numpy as np
@@ -27,18 +28,21 @@ import math
 
 
 class Controller:
-    def __init__(self, reload=False, path="/home/samuele/Research/datasets/CAD-60/data1/0512173548", persist=True):
+    def __init__(self, load=False, path="/home/samuele/Research/datasets/CAD-60/data1/0512173548", persist=True):
         self.skeletons = []
         self.dataset = []
         self.dataset2d = []
         self.clusters = []
+        self.offsets = []       # Splits the dataset in sequences
+        self.intentions = []
         self.ax = None          # Plotting purpose
         # Data generation
-        if not reload:
+        if not load:
             self.generate_skeletons(path)
             self.generate_dataset()
             self.do_pca()
             self.generate_clusters()
+            self.generate_intentions()
             if persist:
                 self.save()
         else:
@@ -58,14 +62,19 @@ class Controller:
 
     # Converts a video sequence in a skeleton sequence and saves it
     def generate_skeletons(self, path):
-        # Load images from desired folder
-        images = self.load_imageset(path)  # Jar opening
-        # Create skeletons for all of them
+        # If path is a single string and not a list, it converts it
+        if not isinstance(path, list):
+            path = [path]
         id = 0
-        for image in images:
-            skeleton = Skeleton(image, id)
-            self.skeletons.append(skeleton)
-            id += 1
+        for folder in path:
+            # Load images from desired folder
+            images = self.load_imageset(folder)
+            # Create skeletons for all of them
+            for image in images:
+                skeleton = Skeleton(image, id)
+                self.skeletons.append(skeleton)
+                id += 1
+            self.offsets.append(id)
 
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
@@ -89,7 +98,7 @@ class Controller:
         # initial centers - optional parameter, if it is None, then random centers will be used by the algorithm.
         # let's avoid random initial centers and initialize them using K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), 2).initialize()
-        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True,
+        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=50,
                                      criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
         # run cluster analysis
         xmeans_instance.process()
@@ -109,12 +118,17 @@ class Controller:
         # generate plot and optionally display it
         self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
 
+    # TODO find a better, automatic way to save and load
+
     # Saves the objects in binary format
     def save(self):
+        pickle.dump(self.skeletons, open("objects/skeletons.p", "wb"))
         pickle.dump(self.skeletons, open("objects/skeletons.p", "wb"))
         pickle.dump(self.dataset, open("objects/dataset.p", "wb"))
         pickle.dump(self.dataset2d, open("objects/dataset2d.p", "wb"))
         pickle.dump(self.clusters, open("objects/clusters.p", "wb"))
+        pickle.dump(self.offsets, open("objects/offsets.p", "wb"))
+        pickle.dump(self.intentions, open("objects/intentions.p", "wb"))
         pickle.dump(self.ax, open("objects/ax.p", "wb"))
 
     # Loads the objects from binary format
@@ -124,6 +138,8 @@ class Controller:
         self.dataset = pickle.load(open("objects/dataset.p", "rb"))
         self.dataset2d = pickle.load(open("objects/dataset2d.p", "rb"))
         self.clusters = pickle.load(open("objects/clusters.p", "rb"))
+        self.offsets = pickle.load(open("objects/offsets.p", "rb"))
+        self.intentions = pickle.load(open("objects/intentions.p", "rb"))
         self.ax = pickle.load(open("objects/ax.p", "rb"))
 
     # Displays a human-friendly result of the clustering operation
@@ -137,21 +153,24 @@ class Controller:
             for skeleton in self.skeletons:
                 im = OffsetImage(skeleton.img, zoom=0.3)
                 coordinates = self.dataset2d[skeleton.id]
-                # Find the cluster id containing the skeleton (make it more pythonic)
-                index = -1
-                for i in range(len(self.clusters)):
-                    if skeleton.id in self.clusters[i].skeleton_ids:
-                        index = i
-                        break
+                cluster_id = self.find_cluster_id(skeleton.id)
                 # Sanity check
-                if index == -1:
+                if cluster_id is None:
                     print("Error! Couldn't find cluster in which a skeleton belongs")
                     raise RuntimeError
-                color = self.clusters[index].color
-                ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
-                self.ax.add_artist(ab)
-                # ax.text(coordinates[0]+0.0015, coordinates[1]+0.005, skeleton.id, fontsize=25)
+                else:
+                    color = self.clusters[cluster_id].color
+                    ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
+                    self.ax.add_artist(ab)
+                    # ax.text(coordinates[0]+0.0015, coordinates[1]+0.005, skeleton.id, fontsize=25)
         plt.show()
+
+    # Find the cluster id containing the skeleton (make it more pythonic)
+    def find_cluster_id(self, skeleton_id):
+        for i in range(len(self.clusters)):
+            if skeleton_id in self.clusters[i].skeleton_ids:
+                return i
+        return None
 
     # Saves a dataset as a csv
     def save_csv(self):
@@ -176,3 +195,18 @@ class Controller:
                 min_distance = dist
                 closest_cluster = cluster.id
         return closest_cluster
+
+    # Computes intentions for each training sequence
+    def generate_intentions(self):
+        # Consider every sequence
+        previous = 0
+        for offset in self.offsets:
+            intention = Intention()
+            for i in range(previous, offset):
+                # Retrieve the cluster id
+                cluster_id = self.find_cluster_id(self.skeletons[i].id)
+                if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
+                    intention.actions.append(cluster_id)
+            #intention.goal.append(...)     # todo goal definition
+            self.intentions.append(intention)
+            previous = offset
