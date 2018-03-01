@@ -56,9 +56,9 @@ class Skeleton:
             quit()
         humans_found = keypoints.shape[0]
         if humans_found > 1:
-            print("Warning: more than one human found in this frame.")
+            print("[" + str(self.id) + "] Warning: more than one human found in this frame.")
         else:
-            print("One human detected.")
+            print("[" + str(self.id) + "] One human detected.")
         keypoints = keypoints[0]
         # KEYPOINT REDUCTION
         # Calculates a new keypoint for the hips as the median between points 8 and 11 fo the original skeleton

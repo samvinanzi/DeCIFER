@@ -67,6 +67,7 @@ class Controller:
             path = [path]
         id = 0
         for folder in path:
+            print("---Processing folder:" + folder)
             # Load images from desired folder
             images = self.load_imageset(folder)
             # Create skeletons for all of them
@@ -79,7 +80,7 @@ class Controller:
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
         # Creates the dataset array
-        dataset = np.zeros(shape=(1, 20))
+        dataset = np.zeros(shape=(1, 20)) #(shape=(1, 12))
         for skeleton in self.skeletons:
             # skeleton.display()
             dataset = np.vstack((dataset, skeleton.as_feature()))
@@ -210,3 +211,19 @@ class Controller:
             #intention.goal.append(...)     # todo goal definition
             self.intentions.append(intention)
             previous = offset
+
+    # Plotss the clusters centroids
+    def plot_clusters(self):
+        x = []
+        y = []
+        for cluster in self.clusters:
+            x.append(cluster.centroid[0])
+            y.append(cluster.centroid[1])
+            self.ax.text(cluster.centroid[0]+0.0015, cluster.centroid[1]+0.005, cluster.id, fontsize=25)
+        plt.plot(x, y, 'kD')
+
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Cluster Centroids')
+        plt.grid(True)
+        plt.show()

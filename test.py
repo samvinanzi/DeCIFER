@@ -39,12 +39,17 @@ def get_camera_image():
         return None
 
 
+# ----- #
 
-#ctrl = Controller(load=False, path="/home/samuele/Research/datasets/CAD-60/custom/opening/", persist=False)
-#new_sample = Skeleton(cv2.imread("/home/samuele/Research/datasets/CAD-60/custom/RGB_248.png"), id=-1)
-#print(ctrl.find_closest_centroid(new_sample))
 
-ctrl = Controller(path=["/home/samuele/Research/datasets/CAD-60/custom/opening/",
-                        "/home/samuele/Research/datasets/CAD-60/custom/drinking/"], persist=False)
+basedir = "/home/samuele/Research/datasets/CAD-120/decifer1/"
+directories = [
+    basedir + "cereal",
+    basedir + "medicine",
+    basedir + "stacking",
+    basedir + "unstacking"
+]
+
+ctrl = Controller(path=directories, persist=True)
+ctrl.plot_clusters()
 pass
-#ctrl.show_clustering()
