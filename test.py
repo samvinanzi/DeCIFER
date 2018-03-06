@@ -42,14 +42,17 @@ def get_camera_image():
 # ----- #
 
 
-basedir = "/home/samuele/Research/datasets/CAD-120/decifer1/"
+basedir = "/home/samuele/Research/datasets/frames2fps/"
 directories = [
-    basedir + "cereal",
-    basedir + "medicine",
-    basedir + "stacking",
-    basedir + "unstacking"
+    basedir + "tower",
+    basedir + "wall",
+    basedir + "castle-small",
+    basedir + "clean"
 ]
 
-ctrl = Controller(path=directories, persist=True)
-ctrl.plot_clusters()
+ctrl = Controller()
+ctrl.initialize(directories)
+ctrl.reload_data()
+#ctrl.plot_clusters()
+#ctrl.show_clustering()
 pass

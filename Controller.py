@@ -19,8 +19,7 @@ from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 import pyclustering.cluster.xmeans as pyc
 from pyclustering.utils import draw_clusters
 
-from os import listdir
-from os.path import isfile, join
+import os
 
 import pickle
 import csv
@@ -28,7 +27,7 @@ import math
 
 
 class Controller:
-    def __init__(self, load=False, path="/home/samuele/Research/datasets/CAD-60/data1/0512173548", persist=True):
+    def __init__(self):
         self.skeletons = []
         self.dataset = []
         self.dataset2d = []
@@ -36,28 +35,66 @@ class Controller:
         self.offsets = []       # Splits the dataset in sequences
         self.intentions = []
         self.ax = None          # Plotting purpose
-        # Data generation
-        if not load:
-            self.generate_skeletons(path)
-            self.generate_dataset()
-            self.do_pca()
-            self.generate_clusters()
-            self.generate_intentions()
-            if persist:
-                self.save()
-        else:
-            try:
-                self.load()
-            except Exception:
-                print("Error: failed to load Controller data.")
-                quit(-1)
+
+    # Initialize a new Controller, generating data
+    def initialize(self, path, savedir="objects/"):
+        self.generate_skeletons(path)
+        self.generate_dataset()
+        self.do_pca()
+        self.generate_clusters()
+        self.generate_intentions()
+        if savedir is not None:
+            self.save(savedir)
+
+    # Reload already computed Controller data
+    def reload_data(self, path="objects/"):
+        try:
+            self.load(path)
+        except Exception:
+            print("Error: failed to load Controller data.")
+            quit(-1)
+        v = vars(self)
+        for items in v:
+            print(items)
+
+    # Saves the objects in binary format
+    def save(self, savedir="objects/"):
+        if savedir[-1] != '/':
+            savedir += '/'
+        # Verify the existence of the saving directory
+        dir = os.path.dirname(savedir)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        # Saves each attribute of the class
+        pickle.dump(self.skeletons, open(savedir + "skeletons.p", "wb"))
+        pickle.dump(self.skeletons, open(savedir + "skeletons.p", "wb"))
+        pickle.dump(self.dataset, open(savedir + "dataset.p", "wb"))
+        pickle.dump(self.dataset2d, open(savedir + "dataset2d.p", "wb"))
+        pickle.dump(self.clusters, open(savedir + "clusters.p", "wb"))
+        pickle.dump(self.offsets, open(savedir + "offsets.p", "wb"))
+        pickle.dump(self.intentions, open(savedir + "intentions.p", "wb"))
+        pickle.dump(self.ax, open(savedir + "ax.p", "wb"))
+
+    # Loads the objects from binary format
+    def load(self, path="objects/"):
+        if path[-1] != '/':
+            path += '/'
+        # Loads each attribute of the class
+        self.skeletons = pickle.load(open(path + "skeletons.p", "rb"))
+        self.dataset = pickle.load(open(path + "dataset.p", "rb"))
+        self.dataset = pickle.load(open(path + "dataset.p", "rb"))
+        self.dataset2d = pickle.load(open(path + "dataset2d.p", "rb"))
+        self.clusters = pickle.load(open(path + "clusters.p", "rb"))
+        self.offsets = pickle.load(open(path + "offsets.p", "rb"))
+        self.intentions = pickle.load(open(path + "intentions.p", "rb"))
+        self.ax = pickle.load(open(path + "ax.p", "rb"))
 
     # Reads all images in a given folder and returns them as an array of images
-    def load_imageset(self, path):
-        onlyfiles = sorted([f for f in listdir(path) if isfile(join(path, f))])
+    def read_imageset(self, path):
+        onlyfiles = sorted([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
         images = np.empty(len(onlyfiles), dtype=object)
         for n in range(0, len(onlyfiles)):
-            images[n] = cv2.imread(join(path, onlyfiles[n]))
+            images[n] = cv2.imread(os.path.join(path, onlyfiles[n]))
         return images
 
     # Converts a video sequence in a skeleton sequence and saves it
@@ -69,7 +106,7 @@ class Controller:
         for folder in path:
             print("---Processing folder:" + folder)
             # Load images from desired folder
-            images = self.load_imageset(folder)
+            images = self.read_imageset(folder)
             # Create skeletons for all of them
             for image in images:
                 skeleton = Skeleton(image, id)
@@ -80,7 +117,7 @@ class Controller:
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
         # Creates the dataset array
-        dataset = np.zeros(shape=(1, 20)) #(shape=(1, 12))
+        dataset = np.zeros(shape=(1, 20))
         for skeleton in self.skeletons:
             # skeleton.display()
             dataset = np.vstack((dataset, skeleton.as_feature()))
@@ -99,7 +136,8 @@ class Controller:
         # initial centers - optional parameter, if it is None, then random centers will be used by the algorithm.
         # let's avoid random initial centers and initialize them using K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), 2).initialize()
-        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=50,
+        # Default tolerance: 0.025
+        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=50, tolerance=0.025,
                                      criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
         # run cluster analysis
         xmeans_instance.process()
@@ -119,30 +157,6 @@ class Controller:
         # generate plot and optionally display it
         self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
 
-    # TODO find a better, automatic way to save and load
-
-    # Saves the objects in binary format
-    def save(self):
-        pickle.dump(self.skeletons, open("objects/skeletons.p", "wb"))
-        pickle.dump(self.skeletons, open("objects/skeletons.p", "wb"))
-        pickle.dump(self.dataset, open("objects/dataset.p", "wb"))
-        pickle.dump(self.dataset2d, open("objects/dataset2d.p", "wb"))
-        pickle.dump(self.clusters, open("objects/clusters.p", "wb"))
-        pickle.dump(self.offsets, open("objects/offsets.p", "wb"))
-        pickle.dump(self.intentions, open("objects/intentions.p", "wb"))
-        pickle.dump(self.ax, open("objects/ax.p", "wb"))
-
-    # Loads the objects from binary format
-    def load(self):
-        self.skeletons = pickle.load(open("objects/skeletons.p", "rb"))
-        self.dataset = pickle.load(open("objects/dataset.p", "rb"))
-        self.dataset = pickle.load(open("objects/dataset.p", "rb"))
-        self.dataset2d = pickle.load(open("objects/dataset2d.p", "rb"))
-        self.clusters = pickle.load(open("objects/clusters.p", "rb"))
-        self.offsets = pickle.load(open("objects/offsets.p", "rb"))
-        self.intentions = pickle.load(open("objects/intentions.p", "rb"))
-        self.ax = pickle.load(open("objects/ax.p", "rb"))
-
     # Displays a human-friendly result of the clustering operation
     def show_clustering(self, just_dots=False):
         # Sanity check
@@ -152,7 +166,7 @@ class Controller:
         if not just_dots:
             # Create interactive plot
             for skeleton in self.skeletons:
-                im = OffsetImage(skeleton.img, zoom=0.3)
+                im = OffsetImage(skeleton.img, zoom=0.08)
                 coordinates = self.dataset2d[skeleton.id]
                 cluster_id = self.find_cluster_id(skeleton.id)
                 # Sanity check

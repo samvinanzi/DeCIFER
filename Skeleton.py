@@ -133,6 +133,9 @@ class Skeleton:
         min_y -= pad_y
         width += 2 * pad_x
         height += 2 * pad_y
+        # Sanity check to avoid negative coordinates
+        min_x = max(0, min_x)
+        min_y = max(0, min_y)
         return [int(min_x), int(min_y), int(min_x) + int(width), int(min_y) + int(height)]
 
     # Crops and displays the skeleton, with or without the background generating image
