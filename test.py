@@ -6,13 +6,14 @@ Sandbox script
 
 import cv2
 import time
-from Controller import Controller
+from Learner import Learner
 from Skeleton import Skeleton
 from Keypoint import Keypoint
+from IntentionReader import IntentionReader
 
 # Workstation webcamera resolution
-wrk_camera_width = 800
-wrk_camera_height = 600
+# wrk_camera_width = 800
+# wrk_camera_height = 600
 
 
 # Shows the webcam stream
@@ -39,20 +40,29 @@ def get_camera_image():
         return None
 
 
-# ----- #
+# -------------------------------------------------------------------------------------------------------------------- #
 
+# --- DATASET INITIALIZATION --- #
 
-basedir = "/home/samuele/Research/datasets/frames2fps/"
-directories = [
-    basedir + "tower",
-    basedir + "wall",
-    basedir + "castle-small",
-    basedir + "clean"
-]
+traindir = "/home/samuele/Research/datasets/block-building-game/train/"
+testdir = "/home/samuele/Research/datasets/block-building-game/test/"
+goal_names = ["tower", "wall", "castle-small", "clean"]
 
-ctrl = Controller()
-ctrl.initialize(directories)
-ctrl.reload_data()
-#ctrl.plot_clusters()
-#ctrl.show_clustering()
+train = []
+test = []
+for goal in goal_names:
+    train.append(traindir + goal)
+    test.append(testdir + goal)
+
+# --- PROCESSING --- #
+
+env = Learner()
+env.initialize(train)
+#env.reload_data()
+#env.plot_clusters()
+#env.show_clustering()
+
+ir = IntentionReader(env)
+ir.initialize(test)
+
 pass

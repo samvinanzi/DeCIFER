@@ -1,12 +1,14 @@
 """
 
-This class acts as a manager towards clusters and skeletons.
+This class is in charge of learning intentions from training examples, managing everything that goes from skeleton
+extraction to cluster generation.
 
 """
 
 from Skeleton import Skeleton
 from Cluster import Cluster
 from Intention import Intention
+from SkeletonAcquisitor import SkeletonAcquisitor
 
 import cv2
 import numpy as np
@@ -26,15 +28,16 @@ import csv
 import math
 
 
-class Controller:
+class Learner(SkeletonAcquisitor):
     def __init__(self):
-        self.skeletons = []
-        self.dataset = []
-        self.dataset2d = []
-        self.clusters = []
-        self.offsets = []       # Splits the dataset in sequences
-        self.intentions = []
+        super().__init__()      # Base class initializer
+        self.dataset2d = []     # 2-D dataset
+        self.clusters = []      # Clusters
+        self.intentions = []    # Intentions
+        self.pca = None         # Trained parameters of a PCA model
         self.ax = None          # Plotting purpose
+
+    # --- INITIALIZATION METHODS --- #
 
     # Initialize a new Controller, generating data
     def initialize(self, path, savedir="objects/"):
@@ -42,7 +45,7 @@ class Controller:
         self.generate_dataset()
         self.do_pca()
         self.generate_clusters()
-        self.generate_intentions()
+        self.generate_intentions(goal_labels=path)
         if savedir is not None:
             self.save(savedir)
 
@@ -56,6 +59,8 @@ class Controller:
         v = vars(self)
         for items in v:
             print(items)
+
+    # --- SAVE AND LOAD METHODS --- #
 
     # Saves the objects in binary format
     def save(self, savedir="objects/"):
@@ -73,6 +78,7 @@ class Controller:
         pickle.dump(self.clusters, open(savedir + "clusters.p", "wb"))
         pickle.dump(self.offsets, open(savedir + "offsets.p", "wb"))
         pickle.dump(self.intentions, open(savedir + "intentions.p", "wb"))
+        pickle.dump(self.pca, open(savedir + "pca.p", "wb"))
         pickle.dump(self.ax, open(savedir + "ax.p", "wb"))
 
     # Loads the objects from binary format
@@ -87,48 +93,16 @@ class Controller:
         self.clusters = pickle.load(open(path + "clusters.p", "rb"))
         self.offsets = pickle.load(open(path + "offsets.p", "rb"))
         self.intentions = pickle.load(open(path + "intentions.p", "rb"))
+        self.pca = pickle.load(open(path + "pca.p", "rb"))
         self.ax = pickle.load(open(path + "ax.p", "rb"))
 
-    # Reads all images in a given folder and returns them as an array of images
-    def read_imageset(self, path):
-        onlyfiles = sorted([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
-        images = np.empty(len(onlyfiles), dtype=object)
-        for n in range(0, len(onlyfiles)):
-            images[n] = cv2.imread(os.path.join(path, onlyfiles[n]))
-        return images
-
-    # Converts a video sequence in a skeleton sequence and saves it
-    def generate_skeletons(self, path):
-        # If path is a single string and not a list, it converts it
-        if not isinstance(path, list):
-            path = [path]
-        id = 0
-        for folder in path:
-            print("---Processing folder:" + folder)
-            # Load images from desired folder
-            images = self.read_imageset(folder)
-            # Create skeletons for all of them
-            for image in images:
-                skeleton = Skeleton(image, id)
-                self.skeletons.append(skeleton)
-                id += 1
-            self.offsets.append(id)
-
-    # Builds the dataset feature matrix of dimension (n x 20)
-    def generate_dataset(self):
-        # Creates the dataset array
-        dataset = np.zeros(shape=(1, 20))
-        for skeleton in self.skeletons:
-            # skeleton.display()
-            dataset = np.vstack((dataset, skeleton.as_feature()))
-        # Removes the first, empty row
-        self.dataset = dataset[1:]
+    # --- METHODS --- #
 
     # Performs dimensionality reduction from 20-D to 2-D through PCA
     def do_pca(self):
         # PCA to reduce dimensionality to 2D
-        pca = PCA(n_components=2).fit(self.dataset)
-        self.dataset2d = pca.transform(self.dataset).tolist()
+        self.pca = PCA(n_components=2).fit(self.dataset)
+        self.dataset2d = self.pca.transform(self.dataset).tolist()
 
     # Performs X-Means clustering on the provided dataset
     def generate_clusters(self):
@@ -157,6 +131,55 @@ class Controller:
         # generate plot and optionally display it
         self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
 
+    # Find the cluster id containing the skeleton (make it more pythonic)
+    def find_cluster_id(self, skeleton_id):
+        for i in range(len(self.clusters)):
+            if skeleton_id in self.clusters[i].skeleton_ids:
+                return i
+        return None
+
+    # Saves a dataset as a csv
+    def save_csv(self):
+        file = open('csv/dataset.csv', 'w')
+        with file:
+            writer = csv.writer(file)
+            writer.writerows(self.dataset)
+
+    # Finds the closest centroid to a new skeletal sample (already in 2D coordinates)
+    def find_closest_centroid(self, sample2d):
+        min_distance = float("inf")
+        closest_cluster = None
+        for cluster in self.clusters:
+            dist = math.hypot(sample2d[0] - cluster.centroid[0], sample2d[1] - cluster.centroid[1])
+            if dist < min_distance:
+                min_distance = dist
+                closest_cluster = cluster.id
+        return closest_cluster
+
+    # Computes intentions for each training sequence
+    def generate_intentions(self, goal_labels):
+        # Checks that lengths are equals
+        if len(goal_labels) != len(self.offsets):
+            print("[ERROR] Dimension mismatch between goal label list and offset list.")
+            quit(-1)
+        # Consider every sequence
+        previous = 0
+        for offset_index in range(len(self.offsets)):
+            intention = Intention()
+            for skeleton_index in range(previous, self.offsets[offset_index]):
+                # Retrieve the cluster id
+                cluster_id = self.find_cluster_id(self.skeletons[skeleton_index].id)
+                if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
+                    intention.actions.append(cluster_id)
+            # Create the goal label from pathname
+            goal_label = os.path.basename(goal_labels[offset_index])
+            intention.goal = goal_label
+            # Save the computed intention
+            self.intentions.append(intention)
+            previous = self.offsets[offset_index]
+
+    # --- DISPLAY METHODS --- #
+
     # Displays a human-friendly result of the clustering operation
     def show_clustering(self, just_dots=False):
         # Sanity check
@@ -180,60 +203,14 @@ class Controller:
                     # ax.text(coordinates[0]+0.0015, coordinates[1]+0.005, skeleton.id, fontsize=25)
         plt.show()
 
-    # Find the cluster id containing the skeleton (make it more pythonic)
-    def find_cluster_id(self, skeleton_id):
-        for i in range(len(self.clusters)):
-            if skeleton_id in self.clusters[i].skeleton_ids:
-                return i
-        return None
-
-    # Saves a dataset as a csv
-    def save_csv(self):
-        file = open('csv/dataset.csv', 'w')
-        with file:
-            writer = csv.writer(file)
-            writer.writerows(self.dataset)
-
-    # Finds the closest centroid to a new skeletal sample
-    def find_closest_centroid(self, sample):
-        # Find the 2D coordinates of the new sample
-        expanded_dataset = np.vstack((self.dataset, sample.as_feature()))
-        pca = PCA(n_components=2).fit(expanded_dataset)
-        expanded_dataset2d = pca.transform(expanded_dataset).tolist()
-        sample2d = expanded_dataset2d[-1]
-        # Compute the minimum distance to a centroid
-        min_distance = float("inf")
-        closest_cluster = None
-        for cluster in self.clusters:
-            dist = math.hypot(sample2d[0] - cluster.centroid[0], sample2d[1] - cluster.centroid[1])
-            if dist < min_distance:
-                min_distance = dist
-                closest_cluster = cluster.id
-        return closest_cluster
-
-    # Computes intentions for each training sequence
-    def generate_intentions(self):
-        # Consider every sequence
-        previous = 0
-        for offset in self.offsets:
-            intention = Intention()
-            for i in range(previous, offset):
-                # Retrieve the cluster id
-                cluster_id = self.find_cluster_id(self.skeletons[i].id)
-                if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
-                    intention.actions.append(cluster_id)
-            #intention.goal.append(...)     # todo goal definition
-            self.intentions.append(intention)
-            previous = offset
-
-    # Plotss the clusters centroids
+    # Plots the clusters centroids
     def plot_clusters(self):
         x = []
         y = []
         for cluster in self.clusters:
             x.append(cluster.centroid[0])
             y.append(cluster.centroid[1])
-            self.ax.text(cluster.centroid[0]+0.0015, cluster.centroid[1]+0.005, cluster.id, fontsize=25)
+            self.ax.text(cluster.centroid[0] + 0.0015, cluster.centroid[1] + 0.005, cluster.id, fontsize=25)
         plt.plot(x, y, 'kD')
 
         plt.xlabel('X')
