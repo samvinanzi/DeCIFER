@@ -34,6 +34,7 @@ class Learner(SkeletonAcquisitor):
         self.dataset2d = []     # 2-D dataset
         self.clusters = []      # Clusters
         self.intentions = []    # Intentions
+        self.goal_labels = []   # Goal labels
         self.pca = None         # Trained parameters of a PCA model
         self.ax = None          # Plotting purpose
 
@@ -45,7 +46,8 @@ class Learner(SkeletonAcquisitor):
         self.generate_dataset()
         self.do_pca()
         self.generate_clusters()
-        self.generate_intentions(goal_labels=path)
+        self.generate_goal_labels(path)
+        self.generate_intentions()
         if savedir is not None:
             self.save(savedir)
 
@@ -56,9 +58,6 @@ class Learner(SkeletonAcquisitor):
         except Exception:
             print("Error: failed to load Controller data.")
             quit(-1)
-        v = vars(self)
-        for items in v:
-            print(items)
 
     # --- SAVE AND LOAD METHODS --- #
 
@@ -78,6 +77,7 @@ class Learner(SkeletonAcquisitor):
         pickle.dump(self.clusters, open(savedir + "clusters.p", "wb"))
         pickle.dump(self.offsets, open(savedir + "offsets.p", "wb"))
         pickle.dump(self.intentions, open(savedir + "intentions.p", "wb"))
+        pickle.dump(self.goal_labels, open(savedir + "goal_labels.p", "wb"))
         pickle.dump(self.pca, open(savedir + "pca.p", "wb"))
         pickle.dump(self.ax, open(savedir + "ax.p", "wb"))
 
@@ -93,6 +93,7 @@ class Learner(SkeletonAcquisitor):
         self.clusters = pickle.load(open(path + "clusters.p", "rb"))
         self.offsets = pickle.load(open(path + "offsets.p", "rb"))
         self.intentions = pickle.load(open(path + "intentions.p", "rb"))
+        self.goal_labels = pickle.load(open(path + "goal_labels.p", "rb"))
         self.pca = pickle.load(open(path + "pca.p", "rb"))
         self.ax = pickle.load(open(path + "ax.p", "rb"))
 
@@ -156,10 +157,15 @@ class Learner(SkeletonAcquisitor):
                 closest_cluster = cluster.id
         return closest_cluster
 
+    # Process and store goal labels
+    def generate_goal_labels(self, path_list):
+        for path in path_list:
+            self.goal_labels.append(os.path.basename(path))
+
     # Computes intentions for each training sequence
-    def generate_intentions(self, goal_labels):
+    def generate_intentions(self):
         # Checks that lengths are equals
-        if len(goal_labels) != len(self.offsets):
+        if len(self.goal_labels) != len(self.offsets):
             print("[ERROR] Dimension mismatch between goal label list and offset list.")
             quit(-1)
         # Consider every sequence
@@ -172,7 +178,7 @@ class Learner(SkeletonAcquisitor):
                 if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
                     intention.actions.append(cluster_id)
             # Create the goal label from pathname
-            goal_label = os.path.basename(goal_labels[offset_index])
+            goal_label = os.path.basename(self.goal_labels[offset_index])
             intention.goal = goal_label
             # Save the computed intention
             self.intentions.append(intention)

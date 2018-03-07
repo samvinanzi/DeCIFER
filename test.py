@@ -10,6 +10,8 @@ from Learner import Learner
 from Skeleton import Skeleton
 from Keypoint import Keypoint
 from IntentionReader import IntentionReader
+from hmmlearn import hmm
+from HighLevel import HighLevel
 
 # Workstation webcamera resolution
 # wrk_camera_width = 800
@@ -40,6 +42,14 @@ def get_camera_image():
         return None
 
 
+# Returns a formatted list of obsrevations from IntentionReading object
+def build_observations(model):
+    observations = []
+    for intention in model.intentions:
+        observations.append([intention.actions, len(intention.actions)])
+    return observations
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 
 # --- DATASET INITIALIZATION --- #
@@ -56,13 +66,22 @@ for goal in goal_names:
 
 # --- PROCESSING --- #
 
+# First, show the low-level training actions
 env = Learner()
-env.initialize(train)
-#env.reload_data()
+#env.initialize(train)
+env.reload_data()
 #env.plot_clusters()
 #env.show_clustering()
 
+# Then, do the high-level training on those actions
+hl = HighLevel(env.goal_labels)
+training_observations = build_observations(env)
+hl.train_model(training_observations)
+
+# Finally, observe testing actions and infer the goals
 ir = IntentionReader(env)
 ir.initialize(test)
+testing_observations = build_observations(ir)
+probs = hl.predict(testing_observations)
 
 pass
