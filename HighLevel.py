@@ -1,42 +1,47 @@
 """
 
-This class represents the high-level model of the cognitive architecture. It is modeled as a Hidden Markov Model.
+This class represents the high-level model of the cognitive architecture. It is modeled as a Hidden Semi-Markov Model.
 
 """
 
 import numpy as np
-from hmmlearn import hmm
+from hsmmlearn.hsmm import MultinomialHSMM
 
 
 class HighLevel:
-    def __init__(self, states):
-        self.state_names = states
-        self.hmm = hmm.MultinomialHMM(n_components=len(states), startprob_prior=1.0, transmat_prior=1.0,
-                                      algorithm='viterbi', random_state=None, n_iter=100, tol=0.01, verbose=False,
-                                      params='ste', init_params='ste')
+    def __init__(self):
+        self.state_names = []
+        self.hsmm = None
 
-    # Parameter formatting
-    # Input must be: [[obs1, len1], [obs2, len2], ... [obsN, lenN]]
-    @staticmethod
-    def produce_parameters(observations):
-        X = np.array([])
-        lengths = []
-        for observation in observations:
-            X = np.concatenate([X, observation[0]])
-            lengths.append(observation[1])
-        # Post-processing
-        X = X.astype(int)
-        X = X.reshape(-1, 1)
-        return X, lengths
+    # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
+    def build_model(self, training_data):
+        # Split data from input dictionary in separate lists
+        data = []
+        for entry in training_data:
+            self.state_names.append(entry['label'])
+            data.append(entry['data'])
+        # Computate some utiliy variables
+        n = len(self.state_names)               # Number of goals
+        max_size = len(max(data, key=len))      # Max length of data sequences
+        obs = list(set([item for sublist in data for item in sublist]))     # List of possible observations
+        # HSMM parameter computation
+        #   1) Transitions
+        transitions = np.full((n, n), 1.0/n)    # Uniform probability distribution
+        #   2) Durations
+        durations = np.full((n, max_size), 0.0)
+        for i in range(len(data)):
+            durations[i][len(data[i])-1] = 1.0
+        #   3) Emissions
+        emissions = np.full((n, len(obs)), 0.0)
+        i = 0
+        for entry in data:
+            # Counts the frequency of every observation in this training example
+            for digit in obs:
+                emissions[i][digit] = entry.count(digit) / len(entry)
+            i += 1
+        # HSMM model generation
+        self.hsmm = MultinomialHSMM(emissions, durations, transitions, startprob=None, support_cutoff=100)
 
-    # Train the model, based on sample observations
-    # Input must be: [[obs1, len1], [obs2, len2], ... [obsN, lenN]]
-    # (does it need iterations to avoid local minima?)
-    def train_model(self, observations):
-        X, lengths = HighLevel.produce_parameters(observations)
-        self.hmm.fit(X, lengths)
-
-    # Predict the probabilities of the states
+    # Decodes a sequence of observations to the most probable states that generated them
     def predict(self, observations):
-        X, lengths = HighLevel.produce_parameters(observations)
-        return self.hmm.predict_proba(X, lengths)
+        return self.hsmm.decode(observations)

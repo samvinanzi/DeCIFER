@@ -10,7 +10,6 @@ from Learner import Learner
 from Skeleton import Skeleton
 from Keypoint import Keypoint
 from IntentionReader import IntentionReader
-from hmmlearn import hmm
 from HighLevel import HighLevel
 
 # Workstation webcamera resolution
@@ -66,6 +65,31 @@ for goal in goal_names:
 
 # --- PROCESSING --- #
 
+
+data = [
+         {
+             'data': [0, 2, 0, 2, 0, 2, 0],
+             'label': "tower"
+         },
+         {
+             'data': [0, 1, 0, 1, 0, 1, 0],
+             'label': "wall"
+         },
+         {
+             'data': [0, 2, 0, 1, 0, 2, 0],
+             'label': "castle"
+         }
+     ]
+hl = HighLevel()
+hl.build_model(data)
+decoded_obs = hl.hsmm.decode([0, 2, 0, 2, 0, 2, 0, 0, 1, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0])
+
+quit()
+
+
+
+
+
 # First, show the low-level training actions
 env = Learner()
 #env.initialize(train)
@@ -74,14 +98,14 @@ env.reload_data()
 #env.show_clustering()
 
 # Then, do the high-level training on those actions
-hl = HighLevel(env.goal_labels)
-training_observations = build_observations(env)
-hl.train_model(training_observations)
+#hl = HighLevel(env.goal_labels)
+#training_observations = build_observations(env)
+#hl.train_model(training_observations)
 
 # Finally, observe testing actions and infer the goals
-ir = IntentionReader(env)
-ir.initialize(test)
-testing_observations = build_observations(ir)
-probs = hl.predict(testing_observations)
+#ir = IntentionReader(env)
+#ir.initialize(test)
+#testing_observations = build_observations(ir)
+#probs = hl.predict(testing_observations)
 
 pass
