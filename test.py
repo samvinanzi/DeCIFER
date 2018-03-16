@@ -55,7 +55,8 @@ def build_observations(model):
 
 traindir = "/home/samuele/Research/datasets/block-building-game/train/"
 testdir = "/home/samuele/Research/datasets/block-building-game/test/"
-goal_names = ["tower", "wall", "castle-small", "clean"]
+#goal_names = ["tower", "wall", "castle-small", "clean"]
+goal_names = ["tower", "wall", "castle-small"]              # Reduced dataset, without "clean" goal
 
 train = []
 test = []
@@ -65,47 +66,25 @@ for goal in goal_names:
 
 # --- PROCESSING --- #
 
-
-data = [
-         {
-             'data': [0, 2, 0, 2, 0, 2, 0],
-             'label': "tower"
-         },
-         {
-             'data': [0, 1, 0, 1, 0, 1, 0],
-             'label': "wall"
-         },
-         {
-             'data': [0, 2, 0, 1, 0, 2, 0],
-             'label': "castle"
-         }
-     ]
-hl = HighLevel()
-hl.build_model(data)
-decoded_obs = hl.hsmm.decode([0, 2, 0, 2, 0, 2, 0, 0, 1, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 2, 0])
-
-quit()
-
-
-
-
-
-# First, show the low-level training actions
+# Training phase
 env = Learner()
-#env.initialize(train)
-env.reload_data()
-#env.plot_clusters()
-#env.show_clustering()
+#env.initialize(train)      # New data
+env.reload_data()           # Load old data
+training_data = env.make_training_dataset()
 
-# Then, do the high-level training on those actions
-#hl = HighLevel(env.goal_labels)
-#training_observations = build_observations(env)
-#hl.train_model(training_observations)
+# Then, build the high-level model on those actions
+hl = HighLevel()
+hl.build_model(training_data)
 
-# Finally, observe testing actions and infer the goals
-#ir = IntentionReader(env)
-#ir.initialize(test)
-#testing_observations = build_observations(ir)
-#probs = hl.predict(testing_observations)
+# Testing phase
+ir = IntentionReader(env)
+ir.initialize(test)
+testing_data = ir.make_testing_dataset()
+
+print(hl.predict(testing_data))
+print(hl.decode(testing_data))
+
+hl.incremental_decode(testing_data)
+
 
 pass

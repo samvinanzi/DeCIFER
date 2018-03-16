@@ -14,7 +14,12 @@ class HighLevel:
         self.hsmm = None
 
     # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
-    def build_model(self, training_data):
+    # Ratio is the percetage that observed duration should be the taught one
+    def build_model(self, training_data, ratio=0.9):
+        # Sanity check
+        if ratio <= 0.0 or ratio > 1.0:
+            print("[Error] Invalid ratio value.")
+            quit(-1)
         # Split data from input dictionary in separate lists
         data = []
         for entry in training_data:
@@ -28,9 +33,9 @@ class HighLevel:
         #   1) Transitions
         transitions = np.full((n, n), 1.0/n)    # Uniform probability distribution
         #   2) Durations
-        durations = np.full((n, max_size), 0.0)
+        durations = np.full((n, max_size), (1.0-ratio)/(max_size-1))    # (1-ratio)% chance to have a different duration
         for i in range(len(data)):
-            durations[i][len(data[i])-1] = 1.0
+            durations[i][len(data[i])-1] = ratio              # (ratio)% chace to have normal duration
         #   3) Emissions
         emissions = np.full((n, len(obs)), 0.0)
         i = 0
@@ -42,6 +47,16 @@ class HighLevel:
         # HSMM model generation
         self.hsmm = MultinomialHSMM(emissions, durations, transitions, startprob=None, support_cutoff=100)
 
-    # Decodes a sequence of observations to the most probable states that generated them
+    # Infers a sequence of observations to the most probable states that generated them
     def predict(self, observations):
         return self.hsmm.decode(observations)
+
+    # Generates a sequence of goal labels that correspond to the predictions
+    def decode(self, observations):
+        states = self.predict(observations)
+        return [self.state_names[i] for i in states]
+
+    # Decodes observations incrementally
+    def incremental_decode(self, observations):
+        for i in range(1, len(observations)):
+            print(self.decode(observations[0:(i+1)]))

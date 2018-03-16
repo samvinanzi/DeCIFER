@@ -184,6 +184,14 @@ class Learner(SkeletonAcquisitor):
             self.intentions.append(intention)
             previous = self.offsets[offset_index]
 
+    # Generates a list containing the intentions in dictionary form (training dataset)
+    def make_training_dataset(self):
+        dict_list = []
+        for intention in self.intentions:
+            dict_list.append(intention.as_dict())
+        return dict_list
+
+
     # --- DISPLAY METHODS --- #
 
     # Displays a human-friendly result of the clustering operation

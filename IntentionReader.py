@@ -8,6 +8,7 @@ TODO: incremental, progressive computation (this version does everything in batc
 from Learner import Learner
 from Intention import Intention
 from SkeletonAcquisitor import SkeletonAcquisitor
+import itertools
 
 
 class IntentionReader(SkeletonAcquisitor):
@@ -47,3 +48,7 @@ class IntentionReader(SkeletonAcquisitor):
             # Save the computed intention
             self.intentions.append(intention)
             previous = self.offsets[offset_index]
+
+    # Generate a testing dataset
+    def make_testing_dataset(self):
+        return list(itertools.chain.from_iterable(intention.actions for intention in self.intentions))
