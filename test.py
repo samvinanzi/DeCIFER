@@ -55,8 +55,8 @@ def build_observations(model):
 
 traindir = "/home/samuele/Research/datasets/block-building-game/train/"
 testdir = "/home/samuele/Research/datasets/block-building-game/test/"
-#goal_names = ["tower", "wall", "castle-small", "clean"]
-goal_names = ["tower", "wall", "castle-small"]              # Reduced dataset, without "clean" goal
+goal_names = ["tower", "wall", "castle-small", "clean"]
+#goal_names = ["tower", "wall", "castle-small"]              # Reduced dataset, without "clean" goal
 
 train = []
 test = []
@@ -85,6 +85,5 @@ print(hl.predict(testing_data))
 print(hl.decode(testing_data))
 
 hl.incremental_decode(testing_data)
-
 
 pass

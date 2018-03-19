@@ -11,11 +11,12 @@ from hsmmlearn.hsmm import MultinomialHSMM
 class HighLevel:
     def __init__(self):
         self.state_names = []
+        self.state_thresholds = []
         self.hsmm = None
 
     # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
     # Ratio is the percetage that observed duration should be the taught one
-    def build_model(self, training_data, ratio=0.9):
+    def build_model(self, training_data, ratio=0.9, threshold_percentage=40):
         # Sanity check
         if ratio <= 0.0 or ratio > 1.0:
             print("[Error] Invalid ratio value.")
@@ -25,6 +26,8 @@ class HighLevel:
         for entry in training_data:
             self.state_names.append(entry['label'])
             data.append(entry['data'])
+            # Thresholds are computed as rounded <var>% of duration of that state, minimum 1
+            self.state_thresholds.append(max(1, int(round(len(entry['data']) / 100.0 * threshold_percentage))))
         # Computate some utiliy variables
         n = len(self.state_names)               # Number of goals
         max_size = len(max(data, key=len))      # Max length of data sequences
@@ -59,4 +62,18 @@ class HighLevel:
     # Decodes observations incrementally
     def incremental_decode(self, observations):
         for i in range(1, len(observations)):
-            print(self.decode(observations[0:(i+1)]))
+            states = self.decode(observations[0:(i+1)])
+            print(states)
+            states.reverse()
+            item = states[0]
+            count = 0
+            for state in states:
+                if state == item:
+                    count += 1
+                else:
+                    break
+            if count >= self.state_thresholds[self.state_names.index(item)]:
+                current_goal = item
+            else:
+                current_goal = None
+            print("Current inferred goal is: " + (current_goal if current_goal is not None else "unknown") + "\n")
