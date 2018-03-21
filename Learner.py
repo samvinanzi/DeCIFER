@@ -191,7 +191,6 @@ class Learner(SkeletonAcquisitor):
             dict_list.append(intention.as_dict())
         return dict_list
 
-
     # --- DISPLAY METHODS --- #
 
     # Displays a human-friendly result of the clustering operation

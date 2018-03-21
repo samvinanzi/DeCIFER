@@ -16,7 +16,7 @@ class HighLevel:
 
     # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
     # Ratio is the percetage that observed duration should be the taught one
-    def build_model(self, training_data, ratio=0.9, threshold_percentage=40):
+    def build_model(self, training_data, ratio=0.9, threshold_percentage=50):
         # Sanity check
         if ratio <= 0.0 or ratio > 1.0:
             print("[Error] Invalid ratio value.")
@@ -63,6 +63,7 @@ class HighLevel:
     def incremental_decode(self, observations):
         for i in range(1, len(observations)):
             states = self.decode(observations[0:(i+1)])
+            print(observations[0:(i+1)])
             print(states)
             states.reverse()
             item = states[0]

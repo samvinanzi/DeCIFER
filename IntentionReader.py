@@ -12,10 +12,17 @@ import itertools
 
 
 class IntentionReader(SkeletonAcquisitor):
-    def __init__(self, environment):
+    def __init__(self, environment=None):
         super().__init__()              # Base class initializer
         self.dataset2d = []             # 2-D dataset
         self.intentions = []            # Intentions
+        if environment is not None:
+            self.set_environment(environment)
+        else:
+            self.env = environment
+
+    # Sets a working environment
+    def set_environment(self, environment):
         if isinstance(environment, Learner):
             self.env = environment      # Learner object representing the learned environment
         else:
@@ -31,10 +38,16 @@ class IntentionReader(SkeletonAcquisitor):
 
     # Performs dimensionality reduction from 20-D to 2-D through PCA using the pre-trained model
     def do_pca(self):
+        if self.env is None:
+            print("[ERROR] Environment not initialized.")
+            quit(-1)
         self.dataset2d = self.env.pca.transform(self.dataset).tolist()
 
     # Computes intentions for each training sequence
     def generate_intentions(self):
+        if self.env is None:
+            print("[ERROR] Environment not initialized.")
+            quit(-1)
         # Consider every sequence
         previous = 0
         for offset_index in range(len(self.offsets)):

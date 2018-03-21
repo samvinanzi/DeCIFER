@@ -6,11 +6,14 @@ Sandbox script
 
 import cv2
 import time
+from pathlib import Path
+import os
 from Learner import Learner
 from Skeleton import Skeleton
 from Keypoint import Keypoint
 from IntentionReader import IntentionReader
 from HighLevel import HighLevel
+from CognitiveArchitecture import CognitiveArchitecture
 
 # Workstation webcamera resolution
 # wrk_camera_width = 800
@@ -51,39 +54,8 @@ def build_observations(model):
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
-# --- DATASET INITIALIZATION --- #
+datapath = "/home/samuele/Research/datasets/block-building-game/"
 
-traindir = "/home/samuele/Research/datasets/block-building-game/train/"
-testdir = "/home/samuele/Research/datasets/block-building-game/test/"
-goal_names = ["tower", "wall", "castle-small", "clean"]
-#goal_names = ["tower", "wall", "castle-small"]              # Reduced dataset, without "clean" goal
-
-train = []
-test = []
-for goal in goal_names:
-    train.append(traindir + goal)
-    test.append(testdir + goal)
-
-# --- PROCESSING --- #
-
-# Training phase
-env = Learner()
-#env.initialize(train)      # New data
-env.reload_data()           # Load old data
-training_data = env.make_training_dataset()
-
-# Then, build the high-level model on those actions
-hl = HighLevel()
-hl.build_model(training_data)
-
-# Testing phase
-ir = IntentionReader(env)
-ir.initialize(test)
-testing_data = ir.make_testing_dataset()
-
-print(hl.predict(testing_data))
-print(hl.decode(testing_data))
-
-hl.incremental_decode(testing_data)
-
-pass
+cog = CognitiveArchitecture()
+cog.set_datapath(datapath)
+cog.process(reload=False)
