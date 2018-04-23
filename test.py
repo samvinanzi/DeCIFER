@@ -20,6 +20,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import speech_recognition as sr
 import pyaudio
+from Listener import Listener
+from queue import Queue
+from asyncio import QueueEmpty
+
 
 # Workstation webcamera resolution
 # wrk_camera_width = 800
@@ -94,7 +98,6 @@ def listen_to_speech():
     # create recognizer and mic instances
     recognizer = sr.Recognizer()
     microphone = sr.Microphone()
-    sr.Microphone.list_microphone_names()
     # adjust the recognizer sensitivity to ambient noise and record audio from the microphone
     with microphone as source:
         recognizer.adjust_for_ambient_noise(source)
@@ -113,6 +116,25 @@ def listen_to_speech():
         status = "Unable to recognize speech"
     return response, status
 
+
+# Perform activities in background whilst waiting for thread signaling
+def do_in_background():
+    queue = Queue()
+    l = Listener(queue)
+    l.start()
+    while True:
+        if not queue.empty():
+            try:
+                response, status = queue.get_nowait()
+                queue.task_done()
+                print(response)
+                print(status)
+            except QueueEmpty:
+                print("[ERROR] Queue item is empty and cannot be read.")
+        else:
+            print(". . .")
+        time.sleep(1)
+
 # -------------------------------------------------------------------------------------------------------------------- #
 
 datapath = "/home/samuele/Research/datasets/block-building-game/"
@@ -127,4 +149,10 @@ datapath = "/home/samuele/Research/datasets/block-building-game/"
 #yarp.Network.init()
 #yarp_to_python()
 #yarp_stream()
-listen_to_speech()
+
+# SPEECH
+
+#response, status = listen_to_speech()
+#print("Response: " + response + "\nStatus: " + status)
+
+do_in_background()
