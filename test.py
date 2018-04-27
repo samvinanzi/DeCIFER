@@ -23,6 +23,8 @@ import pyaudio
 from Listener import Listener
 from queue import Queue
 from asyncio import QueueEmpty
+import pyttsx3
+from Robot import Robot
 
 
 # Workstation webcamera resolution
@@ -155,4 +157,7 @@ datapath = "/home/samuele/Research/datasets/block-building-game/"
 #response, status = listen_to_speech()
 #print("Response: " + response + "\nStatus: " + status)
 
-do_in_background()
+#do_in_background()
+
+robot = Robot()
+robot.yarp_stream()
