@@ -25,7 +25,7 @@ class Listener(Thread):
             # adjust the recognizer sensitivity to ambient noise and record audio from the microphone
             with self.microphone as source:
                 self.recognizer.adjust_for_ambient_noise(source)
-                print("Please, talk.")
+                #print("Please, talk.")
                 audio = self.recognizer.listen(source)
             try:
                 response = self.recognizer.recognize_google(audio)

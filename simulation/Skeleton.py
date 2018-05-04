@@ -6,7 +6,7 @@ import PyOpenPose as PyOP
 import cv2
 import numpy as np
 import os
-from Keypoint import Keypoint
+from simulation.Keypoint import Keypoint
 import matplotlib.pyplot as plt
 
 # ----- BEGIN PyOpenPose initialization ----- #
@@ -31,13 +31,12 @@ op = PyOP.OpenPose(net_pose_size, net_face_hands_size, output_size, model, model
 
 
 class Skeleton:
-    def __init__(self, image, robot, id=0):
+    def __init__(self, image, id=0):
         # Member initialization
         self.origin = image.copy()
         self.keypoints = {}
         self.img = None
         self.id = id
-        self.robot = robot
         # Performs computations
         self.prepare()
 
@@ -45,9 +44,8 @@ class Skeleton:
     def prepare(self):
         self.get_keypoints()
         self.generate_image()
-        self.convert_to_cartesian() # todo disable it, not needed
+        self.convert_to_cartesian()
         self.cippitelli_norm()
-        #self.plot(save=False)
 
     # Retrieves the skeletal keypoints
     def get_keypoints(self):
@@ -55,7 +53,7 @@ class Skeleton:
         keypoints = op.getKeypoints(op.KeypointType.POSE)[0]
         if keypoints is None:
             print("No humans found in this frame!")
-            raise NoHumansFoundException
+            quit()
         humans_found = keypoints.shape[0]
         if humans_found > 1:
             print("[" + str(self.id) + "] Warning: more than one human found in this frame.")
@@ -71,24 +69,19 @@ class Skeleton:
         keypoints = np.delete(keypoints, [2, 5, 8, 11, 14, 15, 16, 17], 0)
         # Add the new keypoint
         keypoints = np.vstack([keypoints, newpoint])
-        # Removes the "confidence" column
-        keypoints = np.delete(keypoints, 2, axis=1)
-        # Converts the keypoints to 3D representation
-        #keypoints3d = self.robot.request_3D_points(keypoints.tolist())
-        keypoints3d = np.append(keypoints, np.zeros((11, 1)), axis=1)   # 2D degeneration, for testing todo change it
         # Saves them as a dictionary of Keypoints objects
         self.keypoints = {
-            "Head": Keypoint(keypoints3d[0][0], keypoints3d[0][1], keypoints3d[0][2]),
-            "Neck": Keypoint(keypoints3d[1][0], keypoints3d[1][1], keypoints3d[1][2]),
-            "RElbow": Keypoint(keypoints3d[2][0], keypoints3d[2][1], keypoints3d[2][2]),
-            "RWrist": Keypoint(keypoints3d[3][0], keypoints3d[3][1], keypoints3d[3][2]),
-            "LElbow": Keypoint(keypoints3d[4][0], keypoints3d[4][1], keypoints3d[4][2]),
-            "LWrist": Keypoint(keypoints3d[5][0], keypoints3d[5][1], keypoints3d[5][2]),
-            "RKnee": Keypoint(keypoints3d[6][0], keypoints3d[6][1], keypoints3d[6][2]),
-            "RAnkle": Keypoint(keypoints3d[7][0], keypoints3d[7][1], keypoints3d[7][2]),
-            "LKnee": Keypoint(keypoints3d[8][0], keypoints3d[8][1], keypoints3d[8][2]),
-            "LAnkle": Keypoint(keypoints3d[9][0], keypoints3d[9][1], keypoints3d[9][2]),
-            "Torso": Keypoint(keypoints3d[10][0], keypoints3d[10][1], keypoints3d[10][2])
+            "Head": Keypoint(keypoints[0][0], keypoints[0][1], keypoints[0][2]),
+            "Neck": Keypoint(keypoints[1][0], keypoints[1][1], keypoints[1][2]),
+            "RElbow": Keypoint(keypoints[2][0], keypoints[2][1], keypoints[2][2]),
+            "RWrist": Keypoint(keypoints[3][0], keypoints[3][1], keypoints[3][2]),
+            "LElbow": Keypoint(keypoints[4][0], keypoints[4][1], keypoints[4][2]),
+            "LWrist": Keypoint(keypoints[5][0], keypoints[5][1], keypoints[5][2]),
+            "RKnee": Keypoint(keypoints[6][0], keypoints[6][1], keypoints[6][2]),
+            "RAnkle": Keypoint(keypoints[7][0], keypoints[7][1], keypoints[7][2]),
+            "LKnee": Keypoint(keypoints[8][0], keypoints[8][1], keypoints[8][2]),
+            "LAnkle": Keypoint(keypoints[9][0], keypoints[9][1], keypoints[9][2]),
+            "Torso": Keypoint(keypoints[10][0], keypoints[10][1], keypoints[10][2])
         }
 
     # Computes the missing keypoint names
@@ -114,10 +107,10 @@ class Skeleton:
         # Orders the joints alphabetically
         joints = sorted(keypoints)
         for joint in joints:
-            output.append([keypoints[joint].x, keypoints[joint].y, keypoints[joint].z])
+            output.append([keypoints[joint].x, keypoints[joint].y])
         return np.array(output)
 
-    # Computes the minimum 2D bounding box around the detected skeletal keypoints
+    # Computes the minimum bounding box around the detected skeletal keypoints
     def bounding_box(self, padding=0.2):
         # Remove from the computation the missing keypoints
         temp_keypoints = self.nonmissing_keypoints()
@@ -170,9 +163,11 @@ class Skeleton:
         # Returns the image, in case some other component needs it
         return roi
 
-    # Generates a B/W image of the skeleton and stores it
+    # Generates a B/W image and stores it
     def generate_image(self):
         # Sets the background
+        #height, width, channels = self.origin.shape
+        #self.img = np.zeros((height, width, channels), np.uint8)
         self.img = self.origin.copy()
         box = self.bounding_box()  # Fetches the bounding box dimensions
         # Iterates for each non-missing point
@@ -196,7 +191,6 @@ class Skeleton:
             di = Keypoint()
             di.x = (Ji.x - torso.x) / distance
             di.y = (Ji.y - torso.y) / distance
-            di.z = (Ji.z - torso.z) / distance
             # Substitute this point to the original one
             self.keypoints[name] = di
 
@@ -205,18 +199,12 @@ class Skeleton:
         array = self.keypoints_to_array()
         x = array[:, 0]
         y = array[:, 1]
-        z = array[:, 2]
-        ax = plt.axes(projection='3d')
-        ax.scatter(x, y, z, c='b', marker='o')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        plt.plot(x, y, 'bo')
+
+        plt.xlabel('X')
+        plt.ylabel('Y')
         plt.title('Skeletal Keypoints')
         plt.grid(True)
-        # Puts text
-        for label, keypoint in self.keypoints.items():
-            if not keypoint.is_empty():
-                ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
         if save:
             plt.savefig("plot.png")
         plt.show()
@@ -241,14 +229,9 @@ class Skeleton:
             kp.y = -kp.y + height/2
             self.keypoints[name] = kp
 
-    # Returns a row array (1x30) of features for this skeleton as a dataset example
+    # Returns a row array (1x20) of features for this skeleton as a dataset example
     def as_feature(self):
         array = self.keypoints_to_array()
         # Deletes the final row corresponding to Torso.x and Torso.y (they are always zero)
         array = array[:-1, :]
         return np.array(array).ravel()
-
-
-# Custom exception
-class NoHumansFoundException(Exception):
-    pass

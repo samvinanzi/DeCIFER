@@ -4,16 +4,18 @@ Initializes the low- and high-level modules and connects them to each other.
 
 """
 
-from LowLevel import LowLevel
-from HighLevel import HighLevel
-from Robot import Robot
+from simulation.LowLevel import LowLevel
+from simulation.HighLevel import HighLevel
 
 
 class CognitiveArchitecture:
     def __init__(self):
         self.lowlevel = LowLevel()
         self.highlevel = HighLevel()
-        self.robot = Robot()
+
+    # Sets data folders
+    def set_datapath(self, data_path):
+        self.lowlevel.set_datapaths(data_path)
 
     # Performs the training and testing phases
     def process(self, reload=False):

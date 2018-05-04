@@ -139,25 +139,18 @@ def do_in_background():
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
+# SIMULATION MODE
+
+"""
+from simulation.CognitiveArchitecture import CognitiveArchitecture as SimulatedCognitiveArchitecture
+
 datapath = "/home/samuele/Research/datasets/block-building-game/"
 
-#cog = CognitiveArchitecture()
-#cog.set_datapath(datapath)
-#cog.process(reload=False)
-
-# YARP TESTING
-
-# Initialise YARP
-#yarp.Network.init()
-#yarp_to_python()
-#yarp_stream()
-
-# SPEECH
-
-#response, status = listen_to_speech()
-#print("Response: " + response + "\nStatus: " + status)
-
-#do_in_background()
+cog = SimulatedCognitiveArchitecture()
+cog.set_datapath(datapath)
+cog.process(reload=False)
+"""
 
 robot = Robot()
-robot.yarp_stream()
+data, goal = robot.record_action()
+pass
