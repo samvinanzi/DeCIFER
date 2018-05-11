@@ -5,48 +5,42 @@ extraction to cluster generation.
 
 """
 
-from Skeleton import Skeleton
 from Cluster import Cluster
 from Intention import Intention
-from SkeletonAcquisitor import SkeletonAcquisitor
-
-import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-
 from sklearn.decomposition import PCA
-
 from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 import pyclustering.cluster.xmeans as pyc
 from pyclustering.utils import draw_clusters
-
 import os
-
 import pickle
 import csv
 import math
 
 
-class Learner(SkeletonAcquisitor):
-    def __init__(self):
-        super().__init__()      # Base class initializer
+class Learner():
+    def __init__(self, robot):
+        self.skeletons = []  # Observed skeletons
+        self.offsets = []  # Splits the dataset in sequences
+        self.dataset = []  # 20-D dataset
         self.dataset2d = []     # 2-D dataset
         self.clusters = []      # Clusters
         self.intentions = []    # Intentions
         self.goal_labels = []   # Goal labels
         self.pca = None         # Trained parameters of a PCA model
         self.ax = None          # Plotting purpose
+        self.robot = robot
 
     # --- INITIALIZATION METHODS --- #
 
     # Initialize a new Controller, generating data
     def initialize(self, path, savedir="objects/"):
-        self.generate_skeletons(path)
+        self.generate_skeletons()
         self.generate_dataset()
         self.do_pca()
         self.generate_clusters()
-        self.generate_goal_labels(path)
         self.generate_intentions()
         if savedir is not None:
             self.save(savedir)
@@ -70,7 +64,6 @@ class Learner(SkeletonAcquisitor):
         if not os.path.exists(dir):
             os.makedirs(dir)
         # Saves each attribute of the class
-        pickle.dump(self.skeletons, open(savedir + "skeletons.p", "wb"))
         pickle.dump(self.skeletons, open(savedir + "skeletons.p", "wb"))
         pickle.dump(self.dataset, open(savedir + "dataset.p", "wb"))
         pickle.dump(self.dataset2d, open(savedir + "dataset2d.p", "wb"))
@@ -99,7 +92,41 @@ class Learner(SkeletonAcquisitor):
 
     # --- METHODS --- #
 
-    # Performs dimensionality reduction from 20-D to 2-D through PCA
+    # Performs the learning by demonstration task
+    def generate_skeletons(self):
+        self.robot.say("Please, start demonstrating.")
+        # Loops for all the goals to be learned
+        finished = False
+        while not finished:
+            # Learns a single goal
+            skeletons, goal_name = self.robot.record_goal()
+            self.skeletons.append(skeletons)
+            self.goal_labels.append(goal_name)
+            self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
+            self.robot.say("Do you want to show me another goal?")
+            while True:
+                response = self.robot.wait_and_listen()
+                if self.robot.recognize_commands(response, listenFor="NO"):
+                    self.robot.say("All right, thanks for showing me.")
+                    finished = True
+                    break
+                elif self.robot.recognize_commands(response, listenFor="YES"):
+                    self.robot.say("Ok then, let's continue.")
+                    break
+                else:
+                    self.robot.say("Sorry, I didn't understand. Can you repeat?")
+
+    # Builds the dataset feature matrix of dimension (n x 20)
+    def generate_dataset(self):
+        # Creates the dataset array
+        dataset = np.zeros(shape=(1, 30))
+        for skeleton in self.skeletons:
+            # skeleton.display()
+            dataset = np.vstack((dataset, skeleton.as_feature()))
+        # Removes the first, empty row
+        self.dataset = dataset[1:]
+
+    # Performs dimensionality reduction from 30-D to 2-D through PCA
     def do_pca(self):
         # PCA to reduce dimensionality to 2D
         self.pca = PCA(n_components=2).fit(self.dataset)
@@ -107,10 +134,9 @@ class Learner(SkeletonAcquisitor):
 
     # Performs X-Means clustering on the provided dataset
     def generate_clusters(self):
-        # create object of X-Means algorithm that uses CCORE for processing
-        # initial centers - optional parameter, if it is None, then random centers will be used by the algorithm.
-        # let's avoid random initial centers and initialize them using K-Means++ method
+        # initial centers with K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), 2).initialize()
+        # create object of X-Means algorithm that uses CCORE for processing
         # Default tolerance: 0.025
         xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=50, tolerance=0.025,
                                      criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
@@ -157,11 +183,6 @@ class Learner(SkeletonAcquisitor):
                 closest_cluster = cluster.id
         return closest_cluster
 
-    # Process and store goal labels
-    def generate_goal_labels(self, path_list):
-        for path in path_list:
-            self.goal_labels.append(os.path.basename(path))
-
     # Computes intentions for each training sequence
     def generate_intentions(self):
         # Checks that lengths are equals
@@ -178,8 +199,9 @@ class Learner(SkeletonAcquisitor):
                 if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
                     intention.actions.append(cluster_id)
             # Create the goal label from pathname
-            goal_label = os.path.basename(self.goal_labels[offset_index])
-            intention.goal = goal_label
+            #goal_label = os.path.basename(self.goal_labels[offset_index])
+            #intention.goal = goal_label
+            intention.goal = self.goal_labels[offset_index]
             # Save the computed intention
             self.intentions.append(intention)
             previous = self.offsets[offset_index]

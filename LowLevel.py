@@ -7,15 +7,13 @@ TODO: online mode
 
 from Learner import Learner
 from IntentionReader import IntentionReader
-from Modes import Modes
 from pathlib import Path
 
 
 class LowLevel:
-    def __init__(self, mode=Modes.OFFLINE):
+    def __init__(self):
         self.train = Learner()
         self.test = IntentionReader()
-        self.mode = mode
         self.datasets = None
 
     # Sets the folder paths containing the data

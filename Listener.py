@@ -13,6 +13,7 @@ from asyncio import QueueFull
 class Listener(Thread):
     def __init__(self, queue):
         Thread.__init__(self)
+        self.stop_flag = False
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()   # Default device
         if isinstance(queue, Queue):
@@ -21,11 +22,10 @@ class Listener(Thread):
             print("[ERROR] Invalid Queue reference in Listener initialization.")
 
     def run(self):
-        while True:
+        while not self.stop_flag:
             # adjust the recognizer sensitivity to ambient noise and record audio from the microphone
             with self.microphone as source:
                 self.recognizer.adjust_for_ambient_noise(source)
-                #print("Please, talk.")
                 audio = self.recognizer.listen(source)
             try:
                 response = self.recognizer.recognize_google(audio)
@@ -43,3 +43,4 @@ class Listener(Thread):
                 self.queue.put([response, status])
             except QueueFull:
                 print("[ERROR] Queue item is full and cannot accept further insertions.")
+        print("[DEBUG] Shutting down Listener thread.")

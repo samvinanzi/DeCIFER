@@ -1,5 +1,7 @@
 """
+
 Hardware interface for the iCub robot through YARP middleware.
+
 """
 
 import yarp
@@ -80,17 +82,50 @@ class Robot:
         splitlist = [floatlist[n:n + 3] for n in range(0, len(floatlist), 3)]   # Groups the values in X Y Z groups
         return splitlist
 
-    # Streams the robot's vision
-    def record_action(self, fps=2):
-        # Start the Listener thread
-        self.listener.start()
+    # Busy waiting, listening for valid vocal input (commands are not processed at this stage)
+    def wait_and_listen(self):
+        while True:
+            if not self.vocal_queue.empty():
+                try:
+                    response, status = self.vocal_queue.get_nowait()
+                    self.vocal_queue.task_done()
+                    if response is not None:
+                        return str(response)
+                except QueueEmpty:
+                    print("[ERROR] Queue item is empty and cannot be read.")
+
+    # Initializes the matrixes needed to fetch and process images
+    def initialize_yarp_image(self):
         # Create numpy array to receive the image and the YARP image wrapped around it
         img_array = np.zeros((240, 320, 3), dtype=np.uint8)
         yarp_image = yarp.ImageRgb()
         yarp_image.resize(320, 240)
         yarp_image.setExternal(img_array, img_array.shape[1], img_array.shape[0])
+        return [img_array, yarp_image]
+
+    # Looks for a skeleton in a given image frame. Can raise NoHumansFoundException
+    def look_for_skeleton(self, image_containers):
+        if not image_containers:
+            print("[ERROR] yarp_image is not defined.")
+        else:
+            # Unpacks the matrixes
+            img_array = image_containers[0]
+            yarp_image = image_containers[1]
+            # Gets the RGB frame from the left eye camera
+            self.eye_port.read(yarp_image)
+            # Converts the color space to RGB
+            frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+            # Tries to extract the skeleton or raises a NoHumansFoundException
+            skeleton = Skeleton(frame, self)
+            return skeleton
+
+    # Makes the robot learn one goal
+    def record_goal(self, fps=2):
+        image_containers = self.initialize_yarp_image()
         i = 0
         skeletons = []
+        # Start the Listener thread
+        self.listener.start()
         print("Robot is observing. Say \"STOP\" when the action is completed")
         while True:     # Begin the loop
             # Check for vocal commands
@@ -104,12 +139,10 @@ class Robot:
                 except QueueEmpty:
                     print("[ERROR] Queue item is empty and cannot be read.")
             else:
-                # If no vocal command was given, read the data from the port into the image
-                self.eye_port.read(yarp_image)
-                # Converts the color space to RGB
-                frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+                # If no vocal command was given, look for skeletons in camera image
                 try:
-                    skeleton = Skeleton(frame, self, i)       # Tries to extract the skeletal features
+                    skeleton = self.look_for_skeleton(image_containers)     # Tries to extract the skeletal features
+                    skeleton.id = i
                     skeletons.append(skeleton)
                 except NoHumansFoundException:
                     continue
@@ -121,18 +154,13 @@ class Robot:
         while not self.vocal_queue.empty():
             self.vocal_queue.get_nowait()
         self.say("What goal did you just show me?")
-        goal_name = False
         print("Waiting for the label...")
-        while not goal_name:
-            if not self.vocal_queue.empty():
-                try:
-                    response, status = self.vocal_queue.get_nowait()
-                    self.vocal_queue.task_done()
-                    if response is not None:
-                        goal_name = str(response)
-                        print("Set goal name to: " + goal_name)
-                except QueueEmpty:
-                    print("[ERROR] Queue item is empty and cannot be read.")
+        # Busy waiting until the goal name is given
+        goal_name = self.wait_and_listen()
+        print("Set goal name to: " + goal_name)
+        # Stop the listener thread
+        self.listener.stop_flag = True
+        self.listener.join(5.0)
         return skeletons, goal_name
 
     # Closes all the open ports

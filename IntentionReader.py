@@ -1,25 +1,47 @@
 """
 
 Using a previously trained memory of the scenario, this class manages the decoding of testing examples.
-TODO: incremental, progressive computation (this version does everything in batch)
 
 """
 
 from Learner import Learner
 from Intention import Intention
-from SkeletonAcquisitor import SkeletonAcquisitor
 import itertools
+from threading import Thread
+from Skeleton import NoHumansFoundException
 
 
-class IntentionReader(SkeletonAcquisitor):
-    def __init__(self, environment=None):
-        super().__init__()              # Base class initializer
+class IntentionReader(Thread):
+    def __init__(self, robot, environment=None):
+        Thread.__init__(self)
+
+        # From SkeletonAcquisitor...
+        self.skeletons = []  # Observed skeletons
+        self.offsets = []  # Splits the dataset in sequences
+        self.dataset = []  # 20-D dataset
+
+        self.stop_flag = False
+        self.robot = robot
+
         self.dataset2d = []             # 2-D dataset
         self.intentions = []            # Intentions
         if environment is not None:
             self.set_environment(environment)
         else:
             self.env = environment
+
+    # Concurrently observes the scene and extracts skeletons
+    def run(self):
+        while not self.stop_flag:
+            try:
+                skeleton = self.robot.look_for_skeleton()
+                # Converts that skeleton to a feature array
+                feature = skeleton.as_feature()
+                # Applies PCA
+                feature2d = self.env.pca.transform(feature).tolist()
+                # ToDo generate intentions AND remember globally the past findings
+            except NoHumansFoundException:
+                pass
 
     # Sets a working environment
     def set_environment(self, environment):
@@ -31,8 +53,8 @@ class IntentionReader(SkeletonAcquisitor):
 
     # Processes skeleton and intention data
     def initialize(self, path):
-        self.generate_skeletons(path)
-        self.generate_dataset()
+        #self.generate_skeletons(path)
+        #self.generate_dataset()
         self.do_pca()
         self.generate_intentions()
 

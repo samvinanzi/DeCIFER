@@ -25,6 +25,7 @@ from queue import Queue
 from asyncio import QueueEmpty
 import pyttsx3
 from Robot import Robot
+from Skeleton import NoHumansFoundException
 
 
 # Workstation webcamera resolution
@@ -152,5 +153,5 @@ cog.process(reload=False)
 """
 
 robot = Robot()
-data, goal = robot.record_action()
+data, goal = robot.record_goal()
 pass
