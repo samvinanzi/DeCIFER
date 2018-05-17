@@ -20,7 +20,7 @@ import csv
 import math
 
 
-class Learner():
+class Learner:
     def __init__(self, robot):
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
@@ -35,8 +35,8 @@ class Learner():
 
     # --- INITIALIZATION METHODS --- #
 
-    # Initialize a new Controller, generating data
-    def initialize(self, path, savedir="objects/"):
+    # Acquires and processes the training data
+    def learn(self, savedir="objects/"):
         self.generate_skeletons()
         self.generate_dataset()
         self.do_pca()
@@ -94,15 +94,17 @@ class Learner():
 
     # Performs the learning by demonstration task
     def generate_skeletons(self):
-        self.robot.say("Please, start demonstrating.")
         # Loops for all the goals to be learned
         finished = False
+        i=0
         while not finished:
+            self.robot.say("Please, start demonstrating.")
             # Learns a single goal
-            skeletons, goal_name = self.robot.record_goal()
-            self.skeletons.append(skeletons)
+            skeletons, goal_name = self.robot.record_goal(i)
+            self.skeletons.extend(skeletons)    # extend instead of append to avoid nesting lists
             self.goal_labels.append(goal_name)
             self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
+            i += len(skeletons)
             self.robot.say("Do you want to show me another goal?")
             while True:
                 response = self.robot.wait_and_listen()

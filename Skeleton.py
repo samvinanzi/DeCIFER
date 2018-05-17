@@ -8,6 +8,7 @@ import numpy as np
 import os
 from Keypoint import Keypoint
 import matplotlib.pyplot as plt
+from Robot import iCub
 
 # ----- BEGIN PyOpenPose initialization ----- #
 

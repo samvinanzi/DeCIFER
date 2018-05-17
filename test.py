@@ -20,7 +20,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import speech_recognition as sr
 import pyaudio
-from Listener import Listener
 from queue import Queue
 from asyncio import QueueEmpty
 import pyttsx3
@@ -120,24 +119,6 @@ def listen_to_speech():
     return response, status
 
 
-# Perform activities in background whilst waiting for thread signaling
-def do_in_background():
-    queue = Queue()
-    l = Listener(queue)
-    l.start()
-    while True:
-        if not queue.empty():
-            try:
-                response, status = queue.get_nowait()
-                queue.task_done()
-                print(response)
-                print(status)
-            except QueueEmpty:
-                print("[ERROR] Queue item is empty and cannot be read.")
-        else:
-            print(". . .")
-        time.sleep(1)
-
 # -------------------------------------------------------------------------------------------------------------------- #
 
 # SIMULATION MODE
@@ -153,5 +134,10 @@ cog.process(reload=False)
 """
 
 robot = Robot()
-data, goal = robot.record_goal()
+queue = Queue()
+ll = LowLevel(robot, queue)
+
+training_data = ll.do_training()
+
+
 pass

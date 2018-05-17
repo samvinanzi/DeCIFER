@@ -6,13 +6,18 @@ This class represents the high-level model of the cognitive architecture. It is 
 
 import numpy as np
 from hsmmlearn.hsmm import MultinomialHSMM
+from asyncio import QueueEmpty
+from StopThread import StopThread
 
 
-class HighLevel:
-    def __init__(self):
+class HighLevel(StopThread):
+    def __init__(self, transition_queue):
+        StopThread.__init__(self)
         self.state_names = []
         self.state_thresholds = []
         self.hsmm = None
+        self.transition_queue = transition_queue
+        self.observations = []
 
     # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
     # Ratio is the percetage that observed duration should be the taught one
@@ -60,10 +65,10 @@ class HighLevel:
         return [self.state_names[i] for i in states]
 
     # Decodes observations incrementally
-    def incremental_decode(self, observations):
-        for i in range(1, len(observations)):
-            states = self.decode(observations[0:(i+1)])
-            print(observations[0:(i+1)])
+    def incremental_decode_batch(self):
+        for i in range(1, len(self.observations)):
+            states = self.decode(self.observations[0:(i+1)])
+            print(self.observations[0:(i+1)])
             print(states)
             states.reverse()
             item = states[0]
@@ -78,3 +83,20 @@ class HighLevel:
             else:
                 current_goal = None
             print("Current inferred goal is: " + (current_goal if current_goal is not None else "unknown") + "\n")
+
+    # Accesses the transition queue and decodes the observations incrementally
+    def run(self):
+        self.stop_flag = False  # This is done to avoid unexpected behavior
+        print("[DEBUG] HighLevel thread is running in background.")
+        while not self.stop_flag:
+            if not self.transition_queue.empty():
+                try:
+                    # Retrieves a new observation
+                    observation = self.transition_queue.get()  # Blocking call
+                    self.transition_queue.task_done()
+                    self.observations.append(observation)
+                    # Decodes all the observations acquired
+                    self.incremental_decode_batch()
+                except QueueEmpty:
+                    print("[ERROR] Queue item is empty and cannot be read.")
+        print("[DEBUG] Shutting down HighLevel thread.")

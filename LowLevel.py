@@ -1,38 +1,22 @@
 """
 
 This class represents the low-level model of the cognitive architecture. It performs skeletal extraction and clustering.
-TODO: online mode
 
 """
 
 from Learner import Learner
 from IntentionReader import IntentionReader
-from pathlib import Path
 
 
 class LowLevel:
-    def __init__(self):
-        self.train = Learner()
-        self.test = IntentionReader()
-        self.datasets = None
-
-    # Sets the folder paths containing the data
-    def set_datapaths(self, basedir):
-        goal_names = [x.parts[-1] for x in Path(basedir + 'train/').iterdir() if x.is_dir()]    # Goals are the subdirs
-        train_paths = []
-        test_paths = []
-        for goal in goal_names:
-            train_paths.append(basedir + 'train/' + goal)
-            test_paths.append(basedir + 'test/' + goal)
-        self.datasets = {
-            'train': train_paths,
-            'test': test_paths
-        }
+    def __init__(self, robot, transition_queue):
+        self.train = Learner(robot)
+        self.test = IntentionReader(robot, transition_queue)
+        self.transition_queue = transition_queue    # Cluster transition real-time queue
 
     # Performs the training phase and outputs the training data
     def do_training(self):
-        # Performs skeleton extraction, clustering and transition analysis
-        self.train.initialize(self.datasets['train'])
+        self.train.learn()
         return self.train.make_training_dataset()
 
     # Reloads previously computed training data
@@ -40,9 +24,12 @@ class LowLevel:
         self.train.reload_data()
         return self.train.make_training_dataset()
 
-    # Performs the testing (playing) phase and outputs the testing data
+    # Performs skeleton extraction, clustering and transition analysis
     def do_testing(self):
         self.test.set_environment(self.train)
-        # Performs skeleton extraction, clustering and transition analysis
-        self.test.initialize(self.datasets['test'])
-        return self.test.make_testing_dataset()
+        self.test.start()
+
+    # Stops the testing thread
+    def stop_testing(self):
+        self.test.stop_flag = True
+        self.test.join(5.0)

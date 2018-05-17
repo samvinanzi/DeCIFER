@@ -1,89 +1,71 @@
 """
 
-Using a previously trained memory of the scenario, this class manages the decoding of testing examples.
+Using a previously trained memory of the scenario, this class manages the decoding of testing examples. This is done in
+real-time, clustering new skeleton data as it arrives and analyzing the cluster transitions.
 
 """
 
 from Learner import Learner
 from Intention import Intention
-import itertools
-from threading import Thread
+from StopThread import StopThread
 from Skeleton import NoHumansFoundException
+import numpy as np
+from asyncio import QueueFull
 
 
-class IntentionReader(Thread):
-    def __init__(self, robot, environment=None):
-        Thread.__init__(self)
-
-        # From SkeletonAcquisitor...
+class IntentionReader(StopThread):
+    def __init__(self, robot, transition_queue):
+        StopThread.__init__(self)
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
         self.dataset = []  # 20-D dataset
-
-        self.stop_flag = False
+        self.dataset2d = []  # 2-D dataset
+        self.intention = Intention()
         self.robot = robot
-
-        self.dataset2d = []             # 2-D dataset
-        self.intentions = []            # Intentions
-        if environment is not None:
-            self.set_environment(environment)
-        else:
-            self.env = environment
-
-    # Concurrently observes the scene and extracts skeletons
-    def run(self):
-        while not self.stop_flag:
-            try:
-                skeleton = self.robot.look_for_skeleton()
-                # Converts that skeleton to a feature array
-                feature = skeleton.as_feature()
-                # Applies PCA
-                feature2d = self.env.pca.transform(feature).tolist()
-                # ToDo generate intentions AND remember globally the past findings
-            except NoHumansFoundException:
-                pass
+        self.transition_queue = transition_queue    # Event queue read by the upper level
+        self.env = None     # Learner object representing the learned environment
 
     # Sets a working environment
     def set_environment(self, environment):
         if isinstance(environment, Learner):
-            self.env = environment      # Learner object representing the learned environment
+            self.env = environment
         else:
             print("[ERROR] Environment must be an instance of Learner class")
             quit(-1)
 
-    # Processes skeleton and intention data
-    def initialize(self, path):
-        #self.generate_skeletons(path)
-        #self.generate_dataset()
-        self.do_pca()
-        self.generate_intentions()
-
-    # Performs dimensionality reduction from 20-D to 2-D through PCA using the pre-trained model
-    def do_pca(self):
+    # Concurrently observes the scene and extracts skeletons
+    def run(self):
         if self.env is None:
-            print("[ERROR] Environment not initialized.")
+            print("[ERROR] Environment must be initialized!")
             quit(-1)
-        self.dataset2d = self.env.pca.transform(self.dataset).tolist()
-
-    # Computes intentions for each training sequence
-    def generate_intentions(self):
-        if self.env is None:
-            print("[ERROR] Environment not initialized.")
-            quit(-1)
-        # Consider every sequence
-        previous = 0
-        for offset_index in range(len(self.offsets)):
-            intention = Intention()
-            for data_index in range(previous, self.offsets[offset_index]):
-                # Retrieve the cluster id
-                cluster_id = self.env.find_closest_centroid(self.dataset2d[data_index])
-                if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
-                    intention.actions.append(cluster_id)
-            # No goal must be specified in testing phase
-            # Save the computed intention
-            self.intentions.append(intention)
-            previous = self.offsets[offset_index]
-
-    # Generate a testing dataset
-    def make_testing_dataset(self):
-        return list(itertools.chain.from_iterable(intention.actions for intention in self.intentions))
+        self.stop_flag = False  # This is done to avoid unexpected behavior
+        print("[DEBUG] IntentionReader thread is running in background.")
+        while not self.stop_flag:
+            try:
+                # Tries to extract a skeleton
+                skeleton = self.robot.look_for_skeleton()
+                self.skeletons.append(skeleton)
+                # Converts that skeleton to a feature array and memorizes it
+                feature = skeleton.as_feature()
+                if not self.dataset:
+                    self.dataset = feature
+                else:
+                    self.dataset = np.vstack((self.dataset, skeleton.as_feature()))
+                # Applies PCA
+                feature2d = self.env.pca.transform(feature).tolist()
+                if not self.dataset2d:
+                    self.dataset2d = feature2d
+                else:
+                    self.dataset2d = np.vstack((self.dataset2d, feature2d))
+                # Cluster and examine the transitions
+                cluster_id = self.env.find_closest_centroid(feature2d)
+                if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
+                    self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
+                    # Notify the new transition to the upper level
+                    try:
+                        self.transition_queue.put(cluster_id)
+                    except QueueFull:
+                        print("[ERROR] Transition_queue item is full and cannot accept further insertions.")
+            except NoHumansFoundException:
+                pass
+        print("[DEBUG] Shutting down IntentionReader thread.")
