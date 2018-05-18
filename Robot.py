@@ -5,8 +5,6 @@ Hardware interface for the iCub robot through YARP middleware.
 """
 
 import yarp
-from queue import Queue
-from asyncio import QueueEmpty
 import numpy as np
 import cv2
 import pyttsx3 as tts
@@ -60,6 +58,8 @@ class Robot:
         print("[DEBUG] Robot says: " + phrase)
         self.tts.runAndWait()
 
+    # --- VISION METHODS --- #
+
     # Sends a request to the RPC server to convert a list of 2D points into 3D world coordinate wrt the robot
     # Input has the shape: [[x0, y0], ... , [xn, yn]]
     # Output has the shape: [[x0, y0, z0], ... , [xn, yn, zn]]
@@ -105,6 +105,8 @@ class Robot:
             skeleton = Skeleton(frame, self, i)
             return skeleton
 
+    # --- SPEECH RECOGNITION METHODS --- #
+
     # Analyses the vocal string in search of known commands or for a specific command
     def recognize_commands(self, response, listenFor=None):
         if response is None:
@@ -144,17 +146,25 @@ class Robot:
         print("[DEBUG] Listening stopped")
         return response
 
+    # Only for debugging purposes
+    def wait_and_listen_dummy(self):
+        response = input("Digit the word you would pronounce: ")
+        return response
+
     # Makes the robot learn one goal
-    def record_goal(self, i=0, fps=2):
+    # If debug = True, it only records a few samples and continues
+    def record_goal(self, i=0, fps=2, debug=False):
+        starting_i = i
         image_containers = self.initialize_yarp_image()
         skeletons = []
         # Start the listener thread
-        stop_listening = self.recognizer.listen_in_background(self.microphone, self.speech_recognition_callback)
-        print("[DEBUG] Listening in background")
+        if not debug:
+            stop_listening = self.recognizer.listen_in_background(self.microphone, self.speech_recognition_callback)
+            print("[DEBUG] Listening in background")
         print("Robot is observing. Say \"STOP\" when the action is completed")
         while True:     # Begin the loop
             # Check for vocal commands
-            if self.event.is_set():
+            if not debug and self.event.is_set():
                 with self.lock:
                     response = self.vocal_queue.pop()
                 self.event.clear()
@@ -170,14 +180,20 @@ class Robot:
                 finally:
                     time.sleep(1 / fps)
                 i += 1
+                if debug and i - starting_i == 5:   # Debug mode, records 5 skeletons and continues
+                    break
         # Stop the listener thread
-        stop_listening(wait_for_stop=True)
-        print("[DEBUG] Listening stopped")
+        if not debug:
+            stop_listening(wait_for_stop=True)
+            print("[DEBUG] Listening stopped")
         # At this point, an action has just been performed and terminated
         self.say("What goal did you just show me?")
         print("Waiting for the label...")
         # Waits until the goal name is given
-        goal_name = self.wait_and_listen()
+        if debug:
+            goal_name = self.wait_and_listen_dummy()
+        else:
+            goal_name = self.wait_and_listen()
         print("Set goal name to: " + goal_name)
         return skeletons, goal_name
 
@@ -186,6 +202,3 @@ class Robot:
         print("[DEBUG] Cleaning up...")
         self.rpc_client.close()
         self.eye_port.close()
-
-
-iCub = Robot()

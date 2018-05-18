@@ -1,5 +1,7 @@
 """
-Class for skeletal data processing and management
+
+Class for skeletal data processing and management. Extracts skeletons from RGB images.
+
 """
 
 import PyOpenPose as PyOP
@@ -8,7 +10,7 @@ import numpy as np
 import os
 from Keypoint import Keypoint
 import matplotlib.pyplot as plt
-from Robot import iCub
+
 
 # ----- BEGIN PyOpenPose initialization ----- #
 
@@ -38,20 +40,20 @@ class Skeleton:
         self.keypoints = {}
         self.img = None
         self.id = id
-        self.robot = robot
+        #self.robot = robot
         # Performs computations
-        self.prepare()
+        self.prepare(robot)
 
     # Prepares the data for usage and clustering
-    def prepare(self):
-        self.get_keypoints()
+    def prepare(self, robot):
+        self.get_keypoints(robot)
         self.generate_image()
-        self.convert_to_cartesian() # todo disable it, not needed
+        #self.convert_to_cartesian() # Not needed, SFM already converts pixel to cartesian
         self.cippitelli_norm()
         #self.plot(save=False)
 
     # Retrieves the skeletal keypoints
-    def get_keypoints(self):
+    def get_keypoints(self, robot):
         op.detectPose(self.origin)
         keypoints = op.getKeypoints(op.KeypointType.POSE)[0]
         if keypoints is None:
@@ -75,8 +77,8 @@ class Skeleton:
         # Removes the "confidence" column
         keypoints = np.delete(keypoints, 2, axis=1)
         # Converts the keypoints to 3D representation
-        #keypoints3d = self.robot.request_3D_points(keypoints.tolist())
-        keypoints3d = np.append(keypoints, np.zeros((11, 1)), axis=1)   # 2D degeneration, for testing todo change it
+        keypoints3d = robot.request_3d_points(keypoints.tolist())
+        #keypoints3d = np.append(keypoints, np.zeros((11, 1)), axis=1)   # 2D degeneration, for testing
         # Saves them as a dictionary of Keypoints objects
         self.keypoints = {
             "Head": Keypoint(keypoints3d[0][0], keypoints3d[0][1], keypoints3d[0][2]),

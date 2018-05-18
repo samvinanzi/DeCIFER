@@ -1,6 +1,7 @@
 """
 
-This class represents the low-level model of the cognitive architecture. It performs skeletal extraction and clustering.
+This class represents the low-level model of the cognitive architecture. It performs training and execution of the
+learning task.
 
 """
 
@@ -9,9 +10,9 @@ from IntentionReader import IntentionReader
 
 
 class LowLevel:
-    def __init__(self, robot, transition_queue):
-        self.train = Learner(robot)
-        self.test = IntentionReader(robot, transition_queue)
+    def __init__(self, transition_queue, debug):
+        self.train = Learner(debug)
+        self.test = IntentionReader(transition_queue)
         self.transition_queue = transition_queue    # Cluster transition real-time queue
 
     # Performs the training phase and outputs the training data

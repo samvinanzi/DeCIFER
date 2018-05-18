@@ -18,10 +18,11 @@ import os
 import pickle
 import csv
 import math
+from iCub import icub
 
 
 class Learner:
-    def __init__(self, robot):
+    def __init__(self, debug=False):
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
         self.dataset = []  # 20-D dataset
@@ -31,7 +32,7 @@ class Learner:
         self.goal_labels = []   # Goal labels
         self.pca = None         # Trained parameters of a PCA model
         self.ax = None          # Plotting purpose
-        self.robot = robot
+        self.debug = debug      # If true, vocal commands will be substituted by keyboard input
 
     # --- INITIALIZATION METHODS --- #
 
@@ -98,25 +99,29 @@ class Learner:
         finished = False
         i=0
         while not finished:
-            self.robot.say("Please, start demonstrating.")
+            icub.say("Please, start demonstrating.")
             # Learns a single goal
-            skeletons, goal_name = self.robot.record_goal(i)
+            skeletons, goal_name = icub.record_goal(i, 2, self.debug)
             self.skeletons.extend(skeletons)    # extend instead of append to avoid nesting lists
             self.goal_labels.append(goal_name)
             self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
             i += len(skeletons)
-            self.robot.say("Do you want to show me another goal?")
+            icub.say("Do you want to show me another goal?")
             while True:
-                response = self.robot.wait_and_listen()
-                if self.robot.recognize_commands(response, listenFor="NO"):
-                    self.robot.say("All right, thanks for showing me.")
+                if not self.debug:
+                    response = icub.wait_and_listen()
+                else:
+                    response = icub.wait_and_listen_dummy()
+                if icub.recognize_commands(response, listenFor="NO"):
+                    icub.say("All right, thanks for showing me.")
                     finished = True
                     break
-                elif self.robot.recognize_commands(response, listenFor="YES"):
-                    self.robot.say("Ok then, let's continue.")
+                elif icub.recognize_commands(response, listenFor="YES"):
+                    icub.say("Ok then, let's continue.")
                     break
                 else:
-                    self.robot.say("Sorry, I didn't understand. Can you repeat?")
+                    icub.say("Sorry, I didn't understand. Can you repeat?")
+
 
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):

@@ -7,15 +7,13 @@ Initializes the low- and high-level modules and connects them to each other.
 from LowLevel import LowLevel
 from HighLevel import HighLevel
 from queue import Queue
-from Robot import Robot
 import keyboard     # temporary
 
 
 class CognitiveArchitecture:
-    def __init__(self):
+    def __init__(self, debug=False):
         self.transtion_queue = Queue()
-        self.robot = Robot()
-        self.lowlevel = LowLevel(self.robot, self.transtion_queue)
+        self.lowlevel = LowLevel(self.transtion_queue, debug)
         self.highlevel = HighLevel(self.transtion_queue)
 
     # Performs the training and testing phases
@@ -23,6 +21,7 @@ class CognitiveArchitecture:
         # Training phase
         training_data = self.lowlevel.reload_training() if reload else self.lowlevel.do_training()
         self.highlevel.build_model(training_data)
+        quit(-1) # todo delete this
         # Testing phase
         while True:
             # LowLevel decodes skeletons and tries to extract cluster transitions

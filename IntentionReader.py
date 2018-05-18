@@ -11,17 +11,17 @@ from StopThread import StopThread
 from Skeleton import NoHumansFoundException
 import numpy as np
 from asyncio import QueueFull
+from iCub import icub
 
 
 class IntentionReader(StopThread):
-    def __init__(self, robot, transition_queue):
+    def __init__(self, transition_queue):
         StopThread.__init__(self)
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
         self.dataset = []  # 20-D dataset
         self.dataset2d = []  # 2-D dataset
         self.intention = Intention()
-        self.robot = robot
         self.transition_queue = transition_queue    # Event queue read by the upper level
         self.env = None     # Learner object representing the learned environment
 
@@ -43,7 +43,7 @@ class IntentionReader(StopThread):
         while not self.stop_flag:
             try:
                 # Tries to extract a skeleton
-                skeleton = self.robot.look_for_skeleton()
+                skeleton = icub.look_for_skeleton()
                 self.skeletons.append(skeleton)
                 # Converts that skeleton to a feature array and memorizes it
                 feature = skeleton.as_feature()
