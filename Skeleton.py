@@ -46,7 +46,7 @@ class Skeleton:
     # Prepares the data for usage and clustering
     def prepare(self, robot):
         self.get_keypoints(robot)
-        #self.convert_to_cartesian() # Not needed, SFM already converts pixel to cartesian
+        # self.convert_to_cartesian() # Not needed, SFM already converts pixel to cartesian
         self.cippitelli_norm()
 
     # Retrieves the skeletal keypoints
@@ -73,20 +73,6 @@ class Skeleton:
         keypoints = np.vstack([keypoints, newpoint])
         # Removes the "confidence" column
         keypoints = np.delete(keypoints, 2, axis=1)
-        # Saves the 2D pixel representation of the keypoints
-        self.keypoints_2d = {
-            "Head": Keypoint(keypoints[0][0], keypoints[0][1]),
-            "Neck": Keypoint(keypoints[1][0], keypoints[1][1]),
-            "RElbow": Keypoint(keypoints[2][0], keypoints[2][1]),
-            "RWrist": Keypoint(keypoints[3][0], keypoints[3][1]),
-            "LElbow": Keypoint(keypoints[4][0], keypoints[4][1]),
-            "LWrist": Keypoint(keypoints[5][0], keypoints[5][1]),
-            "RKnee": Keypoint(keypoints[6][0], keypoints[6][1]),
-            "RAnkle": Keypoint(keypoints[7][0], keypoints[7][1]),
-            "LKnee": Keypoint(keypoints[8][0], keypoints[8][1]),
-            "LAnkle": Keypoint(keypoints[9][0], keypoints[9][1]),
-            "Torso": Keypoint(keypoints[10][0], keypoints[10][1])
-        }
         # Converts the keypoints to 3D representation
         keypoints3d = robot.request_3d_points(keypoints.tolist())
         #keypoints3d = np.append(keypoints, np.zeros((11, 1)), axis=1)   # 2D degeneration, for testing
@@ -104,8 +90,22 @@ class Skeleton:
             "LAnkle": Keypoint(keypoints3d[9][0], keypoints3d[9][1], keypoints3d[9][2]),
             "Torso": Keypoint(keypoints3d[10][0], keypoints3d[10][1], keypoints3d[10][2])
         }
-        # Generates the image based on the 2D pixel keypoints
-        # Done after the request of 3D coordinates to avoid time delays
+        # These operations are postponed to avoid time delays with the 3D coordinate generation
+        # Saves the 2D pixel representation of the keypoints
+        self.keypoints_2d = {
+            "Head": Keypoint(keypoints[0][0], keypoints[0][1]),
+            "Neck": Keypoint(keypoints[1][0], keypoints[1][1]),
+            "RElbow": Keypoint(keypoints[2][0], keypoints[2][1]),
+            "RWrist": Keypoint(keypoints[3][0], keypoints[3][1]),
+            "LElbow": Keypoint(keypoints[4][0], keypoints[4][1]),
+            "LWrist": Keypoint(keypoints[5][0], keypoints[5][1]),
+            "RKnee": Keypoint(keypoints[6][0], keypoints[6][1]),
+            "RAnkle": Keypoint(keypoints[7][0], keypoints[7][1]),
+            "LKnee": Keypoint(keypoints[8][0], keypoints[8][1]),
+            "LAnkle": Keypoint(keypoints[9][0], keypoints[9][1]),
+            "Torso": Keypoint(keypoints[10][0], keypoints[10][1])
+        }
+        # Generates the image based on the 2D pixel keypoint
         self.generate_image()
 
     # Computes the missing keypoint names

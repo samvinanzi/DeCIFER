@@ -25,6 +25,7 @@ from asyncio import QueueEmpty
 import pyttsx3
 from Robot import Robot
 from Skeleton import NoHumansFoundException
+from iCub import icub
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -42,6 +43,7 @@ cog.process(reload=False)
 """
 
 cog = CognitiveArchitecture(debug=True)
-cog.process(reload=False)
+cog.process(reload=True)
+
 
 pass

@@ -7,65 +7,62 @@ real-time, clustering new skeleton data as it arrives and analyzing the cluster 
 
 from Learner import Learner
 from Intention import Intention
-from StopThread import StopThread
 from Skeleton import NoHumansFoundException
 import numpy as np
-from asyncio import QueueFull
 from iCub import icub
+import time
 
 
-class IntentionReader(StopThread):
+class IntentionReader:
     def __init__(self, transition_queue):
-        StopThread.__init__(self)
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
-        self.dataset = []  # 20-D dataset
-        self.dataset2d = []  # 2-D dataset
+        self.dataset = None  # 20-D dataset
+        self.dataset2d = None  # 2-D dataset
         self.intention = Intention()
-        self.transition_queue = transition_queue    # Event queue read by the upper level
+        self.tq = transition_queue    # Event queue read by the upper level
         self.env = None     # Learner object representing the learned environment
 
     # Sets a working environment
     def set_environment(self, environment):
-        if isinstance(environment, Learner):
-            self.env = environment
-        else:
-            print("[ERROR] Environment must be an instance of Learner class")
-            quit(-1)
+        assert isinstance(environment, Learner), "Environment must be an instance of Learner class"
+        self.env = environment
 
     # Concurrently observes the scene and extracts skeletons
-    def run(self):
-        if self.env is None:
-            print("[ERROR] Environment must be initialized!")
-            quit(-1)
-        self.stop_flag = False  # This is done to avoid unexpected behavior
-        print("[DEBUG] IntentionReader thread is running in background.")
-        while not self.stop_flag:
+    def observe(self, fps=2):
+        assert self.env is not None, "Environment must be initialized"
+        image_containers = icub.initialize_yarp_image()
+        print("[DEBUG] " + self.__class__.__name__ + " is observing")
+        i = 0
+        while True:
             try:
                 # Tries to extract a skeleton
-                skeleton = icub.look_for_skeleton()
+                skeleton = icub.look_for_skeleton(image_containers, i)
                 self.skeletons.append(skeleton)
                 # Converts that skeleton to a feature array and memorizes it
                 feature = skeleton.as_feature()
-                if not self.dataset:
+                # It is a single sample, so reshape it
+                feature = feature.reshape(1, -1)
+                if self.dataset is None:
                     self.dataset = feature
                 else:
                     self.dataset = np.vstack((self.dataset, skeleton.as_feature()))
                 # Applies PCA
                 feature2d = self.env.pca.transform(feature).tolist()
-                if not self.dataset2d:
+                if self.dataset2d is None:
                     self.dataset2d = feature2d
                 else:
                     self.dataset2d = np.vstack((self.dataset2d, feature2d))
                 # Cluster and examine the transitions
-                cluster_id = self.env.find_closest_centroid(feature2d)
+                cluster_id = self.env.find_closest_centroid(*feature2d)     # Unpacking of the list
                 if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
                     self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
                     # Notify the new transition to the upper level
-                    try:
-                        self.transition_queue.put(cluster_id)
-                    except QueueFull:
-                        print("[ERROR] Transition_queue item is full and cannot accept further insertions.")
+                    self.tq.put(cluster_id)
+                    print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
+                i += 1
             except NoHumansFoundException:
                 pass
-        print("[DEBUG] Shutting down IntentionReader thread.")
+            finally:
+                time.sleep(1 / fps)
+        print("[DEBUG] " + self.__class__.__name__ + " stopped observing")      # currently unreachable

@@ -122,7 +122,6 @@ class Learner:
                 else:
                     icub.say("Sorry, I didn't understand. Can you repeat?")
 
-
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
         # Creates the dataset array
@@ -206,8 +205,6 @@ class Learner:
                 if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
                     intention.actions.append(cluster_id)
             # Create the goal label from pathname
-            #goal_label = os.path.basename(self.goal_labels[offset_index])
-            #intention.goal = goal_label
             intention.goal = self.goal_labels[offset_index]
             # Save the computed intention
             self.intentions.append(intention)

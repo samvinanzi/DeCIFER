@@ -180,7 +180,7 @@ class Robot:
                 finally:
                     time.sleep(1 / fps)
                 i += 1
-                if debug and i - starting_i == 5:   # Debug mode, records 5 skeletons and continues
+                if debug and i - starting_i == 10:   # Debug mode, records 10 skeletons and continues
                     break
         # Stop the listener thread
         if not debug:
