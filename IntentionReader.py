@@ -28,13 +28,14 @@ class IntentionReader:
         assert isinstance(environment, Learner), "Environment must be an instance of Learner class"
         self.env = environment
 
-    # Concurrently observes the scene and extracts skeletons
+    # Observes the scene and reads intentions
     def observe(self, fps=2):
         assert self.env is not None, "Environment must be initialized"
         image_containers = icub.initialize_yarp_image()
         print("[DEBUG] " + self.__class__.__name__ + " is observing")
         i = 0
-        while True:
+        goal_found = False
+        while not goal_found:
             try:
                 # Tries to extract a skeleton
                 skeleton = icub.look_for_skeleton(image_containers, i)
@@ -64,5 +65,8 @@ class IntentionReader:
             except NoHumansFoundException:
                 pass
             finally:
-                time.sleep(1 / fps)
+                if self.tq.was_goal_inferred():     # Checks to see if a goal was found to decide if to stop processing
+                    goal_found = True
+                else:
+                    time.sleep(1 / fps)
         print("[DEBUG] " + self.__class__.__name__ + " stopped observing")      # currently unreachable

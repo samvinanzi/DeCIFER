@@ -13,7 +13,6 @@ class LowLevel:
     def __init__(self, transition_queue, debug):
         self.train = Learner(debug)
         self.test = IntentionReader(transition_queue)
-        #self.transition_queue = transition_queue    # Cluster transition real-time queue
 
     # Performs the training phase and outputs the training data
     def do_training(self):
@@ -29,7 +28,3 @@ class LowLevel:
     def do_testing(self):
         self.test.set_environment(self.train)
         self.test.observe()
-
-    # Stops the testing thread
-    def stop_testing(self):
-        self.test.stop_flag = True

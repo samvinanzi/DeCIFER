@@ -20,8 +20,8 @@ def show_normalization_effect():
 
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=False)
     f.suptitle('Cippitelli Normalization effect on skeletal data')
-    ax1.plot(a[:,0], a[:,1], 'bo')
-    ax2.plot(b[:, 0], b[:,1], 'bo')
+    ax1.plot_keypoints(a[:, 0], a[:, 1], 'bo')
+    ax2.plot_keypoints(b[:, 0], b[:, 1], 'bo')
     ax1.grid(True)
     ax2.grid(True)
     ax1.set_title("Pre-normalization")

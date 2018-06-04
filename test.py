@@ -43,7 +43,8 @@ cog.process(reload=False)
 """
 
 cog = CognitiveArchitecture(debug=True)
-cog.process(reload=True)
+cog.train(reload=True)
+goal = cog.read_intention()
 
 
 pass

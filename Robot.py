@@ -91,19 +91,16 @@ class Robot:
 
     # Looks for a skeleton in a given image frame. Can raise NoHumansFoundException
     def look_for_skeleton(self, image_containers, i):
-        if not image_containers:
-            print("[ERROR] yarp_image is not defined.")
-        else:
-            # Unpacks the matrixes
-            img_array = image_containers[0]
-            yarp_image = image_containers[1]
-            # Gets the RGB frame from the left eye camera
-            self.eye_port.read(yarp_image)
-            # Converts the color space to RGB
-            frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-            # Tries to extract the skeleton or raises a NoHumansFoundException
-            skeleton = Skeleton(frame, self, i)
-            return skeleton
+        assert image_containers is not None, "Missing image containers. Did you run initialize_yarp_image()?"
+        img_array = image_containers[0]
+        yarp_image = image_containers[1]
+        # Gets the RGB frame from the left eye camera
+        self.eye_port.read(yarp_image)
+        # Converts the color space to RGB
+        frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+        # Tries to extract the skeleton or raises a NoHumansFoundException
+        skeleton = Skeleton(frame, self, i)
+        return skeleton
 
     # --- SPEECH RECOGNITION METHODS --- #
 

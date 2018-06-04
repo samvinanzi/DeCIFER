@@ -102,6 +102,7 @@ class HighLevel(StopThread):
             else:
                 current_goal = None
             print("Current inferred goal is: " + (current_goal if current_goal is not None else "unknown") + "\n")
+            return current_goal
 
     # Accesses the transition queue and decodes the observations incrementally
     def run(self):
@@ -109,9 +110,12 @@ class HighLevel(StopThread):
         print("[DEBUG] " + self.__class__.__name__ + " thread is running in background.")
         while not self.stop_flag:
             # Retrieves a new observation, when available
-            observation = self.tq.get()  # Blocking call
+            observation = self.tq.get()  # Blocking call: if IntentionReading is not producing, HighLevel will pend here
             print("[DEBUG][HL] Read " + str(observation) + " from transition queue")
             self.observations.append(observation)
             # Decodes all the observations acquired
-            self.incremental_decode()
+            goal = self.incremental_decode()
+            # As soon as it is able to infer a goal, write it down
+            if goal is not None:
+                self.tq.write_goal_name(goal)
         print("[DEBUG] Shutting down " + self.__class__.__name__ + " thread.")
