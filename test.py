@@ -42,9 +42,10 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
-cog = CognitiveArchitecture(debug=True)
-cog.train(reload=True)
-goal = cog.read_intention()
+#cog = CognitiveArchitecture(debug=True)
+#cog.train(reload=True)
+#goal = cog.read_intention()
 
+icub.are_request("take", (0.1, 1.2, 0.8), "above")
 
 pass

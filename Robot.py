@@ -9,12 +9,9 @@ import numpy as np
 import cv2
 import pyttsx3 as tts
 import time
-from Skeleton import NoHumansFoundException
+from Skeleton import Skeleton, NoHumansFoundException
 import speech_recognition as sr
 from threading import Lock, Event
-
-# Delete me
-from Skeleton import Skeleton
 
 # Initialise YARP
 yarp.Network.init()
@@ -22,9 +19,11 @@ yarp.Network.init()
 # Port names
 LEFT_EYE = "/icub/camcalib/left/out"
 RIGHT_EYE = "/icub/camcalib/right/out"
-EYE_PORT = "/decifer/eye:i"
+EYE_INPUT = "/decifer/eye:i"
 SFM_RPC_SERVER = "/SFM/rpc"
 SFM_RPC_CLIENT = "/decifer/sfm/rpc"
+ARE_RPC_SERVER = "/actionsRenderingEngine/cmd:io"
+ARE_RPC_CLIENT = "/decifer/are/rpc"
 
 
 class Robot:
@@ -33,8 +32,9 @@ class Robot:
         self.vocal_queue = []
         self.accepted_commands = ["START", "STOP", "YES", "NO"]
         self.tts = tts.init()
-        self.rpc_client = yarp.RpcClient()
+        self.sfm_rpc_client = yarp.RpcClient()
         self.eye_port = yarp.Port()
+        self.are_rpc_client = yarp.RpcClient()
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()  # Default device
 
@@ -43,12 +43,14 @@ class Robot:
         self.event = Event()    # to signal the presence of new data in vocal_queue
 
         # Configurations
-        self.tts.setProperty('rate', 140)
+        self.tts.setProperty('rate', 140)                   # Text to Speech
         self.tts.setProperty('voice', 'english')
-        self.rpc_client.open(SFM_RPC_CLIENT)
-        self.rpc_client.addOutput(SFM_RPC_SERVER)
-        self.eye_port.open(EYE_PORT)
-        yarp.Network.connect(LEFT_EYE, EYE_PORT)
+        self.sfm_rpc_client.open(SFM_RPC_CLIENT)            # SFM rpc
+        self.sfm_rpc_client.addOutput(SFM_RPC_SERVER)
+        self.eye_port.open(EYE_INPUT)                       # Eye input port
+        yarp.Network.connect(LEFT_EYE, EYE_INPUT)
+        self.are_rpc_client.open(ARE_RPC_CLIENT)            # ARE rpc
+        self.are_rpc_client.addOutput(ARE_RPC_SERVER)
         with self.microphone as source:
             self.recognizer.adjust_for_ambient_noise(source)  # we only need to calibrate once before we start listening
 
@@ -57,6 +59,70 @@ class Robot:
         self.tts.say(phrase)
         print("[DEBUG] Robot says: " + phrase)
         self.tts.runAndWait()
+
+    # --- ACTION METHODS --- #
+
+    # Defines a generic ActionsRenderingEngine rpc request
+    # Returns True / False based on the success / failure of the action
+    def are_request(self, command, *parameters):
+        # Request Bottle
+        req = yarp.Bottle()
+        req.clear()
+        # Response Bottle
+        res = yarp.Bottle()
+        res.clear()
+        # Build request
+        print("[DEBUG] ARE REQUEST: \"" + str(command) + " " + " ".join([str(s) for s in list(parameters)]) + "\"")
+        req.addString(command)
+        for param in parameters:
+            if isinstance(param, str):
+                req.addString(param)
+            elif isinstance(param, float):
+                req.addDouble(param)
+            elif isinstance(param, (list, tuple)):
+                temp = req.addList()
+                for element in param:
+                    temp.addDouble(element)
+            else:
+                print("[DEBUG] Unknown or invalid type for parameter: " + param)
+                return False
+        # RPC request
+        self.sfm_rpc_client.write(req, res)
+        # Read response
+        print("[DEBUG] ARE RESPONSE: " + res.toString())
+        return res.get(0).asString().upper() == "ACK"
+
+    # Takes an object
+    def take(self, coordinates):
+        return self.are_request("take", coordinates, "above")
+
+    # Gives an object
+    def give(self):
+        return self.are_request("give")
+
+    # Requests an object
+    def expect(self):
+        return self.are_request("expect")
+
+    # Returns in home position
+    def home(self):
+        return self.are_request("home")
+
+    # Looks at left or right
+    def look(self, direction):
+        if direction.upper() == "LEFT":
+            coordinates = (0.0, 0.0, 0.0)       # todo (blue block zone)
+        elif direction.upper == "RIGHT":
+            coordinates = (1.0, 1.0, 1.0)       # todo (red block zone)
+        else:
+            print("[ERROR] Invalid looking direction provided: " + str(direction))
+            return False
+        return self.are_request("look", coordinates)
+
+    # Drops an object
+    def drop(self):
+        coordinates = (0.0, 0.0, 0.0)           # todo (toy chest)
+        return self.are_request("drop", "over", coordinates)
 
     # --- VISION METHODS --- #
 
@@ -75,7 +141,7 @@ class Robot:
             req.addDouble(couple[0])
             req.addDouble(couple[1])
         # RPC request
-        self.rpc_client.write(req, res)
+        self.sfm_rpc_client.write(req, res)
         floatlist = [float(i) for i in list(res.toString().split(' '))]     # Converts the response from str to float
         splitlist = [floatlist[n:n + 3] for n in range(0, len(floatlist), 3)]   # Groups the values in X Y Z groups
         return splitlist
@@ -197,5 +263,6 @@ class Robot:
     # Closes all the open ports
     def cleanup(self):
         print("[DEBUG] Cleaning up...")
-        self.rpc_client.close()
+        self.sfm_rpc_client.close()
+        self.are_rpc_client.close()
         self.eye_port.close()
