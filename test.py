@@ -46,6 +46,8 @@ cog.process(reload=False)
 #cog.train(reload=True)
 #goal = cog.read_intention()
 
-icub.are_request("take", (0.1, 1.2, 0.8), "above")
+centroid = icub.observe_for_centroids(False)
+world_coordinates = icub.request_3d_points([list(centroid)])
+icub.take(world_coordinates[0])
 
 pass

@@ -17,13 +17,15 @@ from threading import Lock, Event
 yarp.Network.init()
 
 # Port names
-LEFT_EYE = "/icub/camcalib/left/out"
+LEFT_EYE = "/icub/camcalib/left/out"        # Eye cameras output from the robot
 RIGHT_EYE = "/icub/camcalib/right/out"
-EYE_INPUT = "/decifer/eye:i"
+EYE_INPUT = "/decifer/eye:i"                # Eye camera input into DeCIFER
 SFM_RPC_SERVER = "/SFM/rpc"
 SFM_RPC_CLIENT = "/decifer/sfm/rpc"
 ARE_RPC_SERVER = "/actionsRenderingEngine/cmd:io"
 ARE_RPC_CLIENT = "/decifer/are/rpc"
+LBP_BOXES = "/lbpExtract/blobs:o"
+BOXES_INPUT = "/decifer/boxes:i"
 
 
 class Robot:
@@ -35,6 +37,7 @@ class Robot:
         self.sfm_rpc_client = yarp.RpcClient()
         self.eye_port = yarp.Port()
         self.are_rpc_client = yarp.RpcClient()
+        self.lbp_boxes_port = yarp.BufferedPortBottle()
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()  # Default device
 
@@ -47,10 +50,13 @@ class Robot:
         self.tts.setProperty('voice', 'english')
         self.sfm_rpc_client.open(SFM_RPC_CLIENT)            # SFM rpc
         self.sfm_rpc_client.addOutput(SFM_RPC_SERVER)
-        self.eye_port.open(EYE_INPUT)                       # Eye input port
+        self.eye_port.open(EYE_INPUT)                       # Eye input port and connection to external output port
         yarp.Network.connect(LEFT_EYE, EYE_INPUT)
         self.are_rpc_client.open(ARE_RPC_CLIENT)            # ARE rpc
         self.are_rpc_client.addOutput(ARE_RPC_SERVER)
+        self.lbp_boxes_port.open(BOXES_INPUT)               # lbpExtract port and connection to external output port
+        yarp.Network.connect(LBP_BOXES, BOXES_INPUT)
+
         with self.microphone as source:
             self.recognizer.adjust_for_ambient_noise(source)  # we only need to calibrate once before we start listening
 
@@ -167,6 +173,25 @@ class Robot:
         # Tries to extract the skeleton or raises a NoHumansFoundException
         skeleton = Skeleton(frame, self, i)
         return skeleton
+
+    # Returns a tuple containing the centroid of one of the objects in the field of view. Optionally, displays it.
+    def observe_for_centroids(self, display=False):
+        bottle = self.lbp_boxes_port.read(False)     # Fetches data from lbpExtract (True = blocking)
+        try:
+            bb_coords = [float(x) for x in bottle.get(0).toString().split()]    # Maybe find a simplier way to do this?
+        except AttributeError:
+            print("[WARNING] No objects identified in the field of view")
+            return None
+        centroid = (int((bb_coords[0] + bb_coords[2]) / 2), int((bb_coords[1] + bb_coords[3]) / 2))
+        print("[DEBUG] Centroid detected: " + str(centroid))
+        if display:
+            img_array, yarp_image = self.initialize_yarp_image()
+            self.eye_port.read(yarp_image)
+            frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+            cv2.circle(frame, (centroid[0], centroid[1]), 1, (0, 0, 0), 5)
+            cv2.imshow("Centroid location", frame)
+            cv2.waitKey(0)
+        return centroid
 
     # --- SPEECH RECOGNITION METHODS --- #
 
