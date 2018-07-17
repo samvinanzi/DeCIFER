@@ -148,7 +148,10 @@ class Robot:
             req.addDouble(couple[1])
         # RPC request
         self.sfm_rpc_client.write(req, res)
-        floatlist = [float(i) for i in list(res.toString().split(' '))]     # Converts the response from str to float
+        try:
+            floatlist = [float(i) for i in list(res.toString().split(' '))]     # Converts the response from str to float
+        except ValueError:
+            floatlist = [0.0, 0.0, 0.0] * len(pointlist)      # In case of error, report a zero-value list
         splitlist = [floatlist[n:n + 3] for n in range(0, len(floatlist), 3)]   # Groups the values in X Y Z groups
         return splitlist
 

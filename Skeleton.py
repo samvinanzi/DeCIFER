@@ -224,6 +224,31 @@ class Skeleton:
             kp.y = -kp.y + height/2
             self.keypoints[name] = kp
 
+    # Analyzes the keypoints to determine the orientation of the person
+    def orientation_reach(self, factor=2.0):
+        # Uses the 4 arms keypoints, if they are valid
+        keypoints = ['RWrist', 'LWrist', 'RElbow', 'LElbow']
+        arms_points = {}
+        for keypoint in keypoints:
+            if not self.keypoints_2d[keypoint].is_empty():
+                arms_points[keypoint] = self.keypoints_2d[keypoint]
+        array_keypoints = self.keypoints_to_array(arms_points)
+        # Fetches the leftmost and rightmost points on the horizontal axis
+        leftmost = np.min(array_keypoints[:, 0])
+        rightmost = np.max(array_keypoints[:, 0])
+        # Uses the neck as a reference
+        neck_x = self.keypoints_2d['Neck'].x
+        # Calculates the two distances
+        d_left = neck_x - leftmost
+        d_right = rightmost - neck_x
+        # Based on the distance, determines where the person is reaching
+        if d_left > factor * d_right:
+            return "left"
+        elif d_right > factor * d_left:
+            return "right"
+        else:
+            return "center"
+
     # ---- DISPLAY FUNCTIONS ----
 
     # Plots the data points

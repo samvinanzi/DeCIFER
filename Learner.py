@@ -217,6 +217,21 @@ class Learner:
             dict_list.append(intention.as_dict())
         return dict_list
 
+    # Determines the general reach orientation of each cluster
+    def cluster_orientation_reach(self):
+        output = [''] * len(self.clusters)
+        for cluster in self.clusters:
+            orientations = {
+                "left": 0,
+                "right": 0,
+                "center": 0
+            }
+            for skeleton_id in cluster.skeleton_ids:
+                orientations[self.skeletons[skeleton_id].orientation_reach()] += 1
+            #cluster.orientation = max(orientations)
+            output[cluster.id] = max(orientations)
+        return output
+
     # --- DISPLAY METHODS --- #
 
     # Displays a human-friendly result of the clustering operation
