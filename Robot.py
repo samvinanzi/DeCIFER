@@ -114,15 +114,8 @@ class Robot:
     def home(self):
         return self.are_request("home")
 
-    # Looks at left or right
-    def look(self, direction):
-        if direction.upper() == "LEFT":
-            coordinates = (0.0, 0.0, 0.0)       # todo (blue block zone)
-        elif direction.upper == "RIGHT":
-            coordinates = (1.0, 1.0, 1.0)       # todo (red block zone)
-        else:
-            print("[ERROR] Invalid looking direction provided: " + str(direction))
-            return False
+    # Looks at one specific direction
+    def look(self, coordinates):
         return self.are_request("look", coordinates)
 
     # Drops an object
