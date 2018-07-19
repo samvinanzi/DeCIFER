@@ -12,7 +12,7 @@ import time
 
 
 class BlockBuildingGame:
-    def __init__(self):
+    def __init__(self, debug=False):
         self.cognition = CognitiveArchitecture()
         self.coordinates = {        # todo calculate on the experimental setup
             "left": (0.0, 0.0, 0.0),
@@ -25,6 +25,7 @@ class BlockBuildingGame:
             "castle": [],
             "clean": []
         }
+        self.debug = debug
 
     # Main execution of the experiment
     def execute(self):
@@ -36,6 +37,7 @@ class BlockBuildingGame:
 
     # Terminates the experiment
     def end(self):
+        icub.say("Thank you for playing!")
         icub.cleanup()
 
     # Trains the robot on the current rules of the game
@@ -65,13 +67,13 @@ class BlockBuildingGame:
 
     # Looks to one side, seeks for a cube, picks it up and gives it to the human partner
     def collect_single_block(self, direction):
-        icub.look(self.coordinates[direction])
+        icub.action_look(self.coordinates[direction])
         object_centroid = icub.observe_for_centroids()
         world_coordinates = icub.request_3d_points([list(object_centroid)])
-        icub.take(world_coordinates[0])
-        icub.give()
+        icub.action_take(world_coordinates[0])
+        icub.action_give()
         time.sleep(5)
-        icub.home()
+        icub.action_home()
 
     # Collects the blocks, in the order provided by the direction sequence
     def collect_blocks(self, goal):
@@ -82,20 +84,28 @@ class BlockBuildingGame:
 
     # Receives a cube and puts it down in the toy chest
     def put_away(self):
-        icub.expect()
+        icub.action_expect()
         time.sleep(5)
-        icub.drop()
-        icub.home()
+        icub.action_drop()
+        icub.action_home()
 
     # Robot and human partner will play the game cooperatively
     def playing_phase(self):
         icub.say("Ok, time to play! Feel free to start.")
-        while True:     # todo exit condition
+        while True:
             goal = self.cognition.read_intention()      # The robot will try to understand the goal in progress
             # Acting, based on the intention read
             if goal == "unknown":       # If unknown, just wait
                 pass
-            elif goal == "clean":       # Pick the cube
+            elif goal == "clean":
                 self.put_away()
             else:
                 self.collect_blocks(goal)
+            # Asks the partner if to continue the game
+            icub.say("Do you wish to continue?")
+            if self.debug:
+                response = icub.wait_and_listen_dummy()
+            else:
+                response = icub.wait_and_listen()
+            if response != "yes":
+                break

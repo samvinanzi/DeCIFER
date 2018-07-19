@@ -42,9 +42,13 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
-cog = CognitiveArchitecture(debug=True)
-cog.train(reload=True)
-print(cog.lowlevel.train.cluster_orientation_reach())
+time.sleep(2)
+skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+skeleton.plot_keypoints()
+
+#cog = CognitiveArchitecture(debug=True)
+#cog.train(reload=True)
+#print(cog.lowlevel.train.cluster_orientation_reach())
 #goal = cog.read_intention()
 
 #centroid = icub.observe_for_centroids(False)

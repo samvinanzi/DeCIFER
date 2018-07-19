@@ -99,27 +99,27 @@ class Robot:
         return res.get(0).asString().upper() == "ACK"
 
     # Takes an object
-    def take(self, coordinates):
+    def action_take(self, coordinates):
         return self.are_request("take", coordinates, "above")
 
     # Gives an object
-    def give(self):
+    def action_give(self):
         return self.are_request("give")
 
     # Requests an object
-    def expect(self):
+    def action_expect(self):
         return self.are_request("expect")
 
     # Returns in home position
-    def home(self):
+    def action_home(self):
         return self.are_request("home")
 
     # Looks at one specific direction
-    def look(self, coordinates):
+    def action_look(self, coordinates):
         return self.are_request("look", coordinates)
 
     # Drops an object
-    def drop(self):
+    def action_drop(self):
         coordinates = (0.0, 0.0, 0.0)           # todo (toy chest)
         return self.are_request("drop", "over", coordinates)
 
