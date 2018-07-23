@@ -42,9 +42,12 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
-time.sleep(2)
-skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-skeleton.plot_keypoints()
+try:
+    time.sleep(1)
+    skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+    skeleton.plot(dimensions=2)
+except KeyboardInterrupt:
+    icub.cleanup()
 
 #cog = CognitiveArchitecture(debug=True)
 #cog.train(reload=True)

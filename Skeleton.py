@@ -212,7 +212,8 @@ class Skeleton:
         for name, kp in kps.items():
             kp.x = kp.x - width / 2
             kp.y = -kp.y + height / 2
-            self.keypoints[name] = kp
+            kps[name] = kp
+        return kps
 
     # Converts cartesian coordinates to pixel
     def convert_to_pixel(self):
@@ -222,7 +223,8 @@ class Skeleton:
         for name, kp in kps.items():
             kp.x = kp.x + width/2
             kp.y = -kp.y + height/2
-            self.keypoints[name] = kp
+            kps[name] = kp
+        return kps
 
     # Analyzes the keypoints to determine the orientation of the person
     def orientation_reach(self, factor=2.0):
@@ -251,29 +253,57 @@ class Skeleton:
 
     # ---- DISPLAY FUNCTIONS ----
 
-    # Plots the data points
-    def plot_keypoints(self, save=False, apply_to_2d=False):
-        if apply_to_2d:
-            print("[WARNING] 2D keypoints have not been converted to cartesian space.")
-            array = self.keypoints_to_array(self.keypoints_2d)
-        else:
-            array = self.keypoints_to_array()
+    # Plots the 2D or 3D data points on a XYZ plot
+    def plot(self, dimensions=2, save=False):
+        assert dimensions == 2 or dimensions == 3, "Only 2D or 3D plotting allowed."
+        connections = [['Head', 'Neck'],
+                       ['Neck', 'Torso'],
+                       ['Neck', 'RElbow'],
+                       ['Neck', 'LElbow'],
+                       ['RElbow', 'RWrist'],
+                       ['LElbow', 'LWrist'],
+                       ['Torso', 'RKnee'],
+                       ['Torso', 'LKnee'],
+                       ['RKnee', 'RAnkle'],
+                       ['LKnee', 'LAnkle']]
+        nonmissing_kp = self.nonmissing_keypoints(apply_to_2d=(True if dimensions == 2 else False))
+        if dimensions == 2:
+            nonmissing_kp = self.convert_to_cartesian()
+        array = self.keypoints_to_array(nonmissing_kp)
         x = array[:, 0]
         y = array[:, 1]
-        z = array[:, 2]
+        if dimensions == 2:
+            z = np.zeros_like(x)
+        else:
+            z = array[:, 2]
         ax = plt.axes(projection='3d')
-        ax.scatter(x, y, z, c='b', marker='o')
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
+        # Connect keypoints to form skeleton
+        for p1, p2 in connections:
+            if p1 in nonmissing_kp and p2 in nonmissing_kp:
+                start = self.keypoints_2d[p1]
+                end = self.keypoints_2d[p2]
+                if dimensions == 2:
+                    ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
+                            np.zeros_like(np.linspace(start.x, end.x)), c="blue", marker='.', linestyle=':',
+                            linewidth=0.1)
+                else:
+                    ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
+                            np.linspace(start.z, end.z), c="blue", marker='.', linestyle=':', linewidth=0.1)
+        ax.scatter(x, y, z, c='b', marker='o', linewidths=5.0)
         plt.title('Skeletal Keypoints')
         plt.grid(True)
         # Puts text
-        for label, keypoint in self.keypoints.items():
-            if not keypoint.is_empty():
-                ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
+        for label, keypoint in nonmissing_kp.items():
+            ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
         if save:
             plt.savefig("plot.png")
+        #ax.view_init(elev=10., azim=120)
+        #for ii in range(0, 360, 1):
+        #    ax.view_init(elev=10., azim=ii)
+        #    plt.savefig("AAA/movie%d.png" % ii)
         plt.show()
 
     # Quickly displays the associated image for the skeleton.
