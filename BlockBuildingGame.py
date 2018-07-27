@@ -14,9 +14,9 @@ import time
 class BlockBuildingGame:
     def __init__(self, debug=False):
         self.cognition = CognitiveArchitecture()
-        self.coordinates = {        # todo calculate on the experimental setup
-            "left": (0.0, 0.0, 0.0),
-            "right": (0.0, 0.0, 0.0),
+        self.coordinates = {
+            "left": (-1.0, -0.5, -0.5),
+            "right": (-1.0, 0.5, -0.5),
             "center": (0.0, 0.0, 0.0)
         }
         self.goals = {
@@ -26,6 +26,7 @@ class BlockBuildingGame:
             "clean": []
         }
         self.debug = debug
+        icub.action_home()
 
     # Main execution of the experiment
     def execute(self):
@@ -68,11 +69,13 @@ class BlockBuildingGame:
     # Looks to one side, seeks for a cube, picks it up and gives it to the human partner
     def collect_single_block(self, direction):
         icub.action_look(self.coordinates[direction])
-        object_centroid = icub.observe_for_centroids()
-        world_coordinates = icub.request_3d_points([list(object_centroid)])
-        icub.action_take(world_coordinates[0])
+        object_centroid = icub.observe_for_centroid()
+        object_coordinates = icub.get_object_coordinates(list(object_centroid))
+        icub.action_take(object_coordinates)
         icub.action_give()
         time.sleep(5)
+        #while icub.is_holding():       # Busy waiting until the hand is freed
+        #    time.sleep(1)
         icub.action_home()
 
     # Collects the blocks, in the order provided by the direction sequence
@@ -86,7 +89,9 @@ class BlockBuildingGame:
     def put_away(self):
         icub.action_expect()
         time.sleep(5)
-        icub.action_drop()
+        # while not icub.is_holding():       # Busy waiting until the hand is loaded
+        #    time.sleep(1)
+        icub.action_drop(self.coordinates['center'])
         icub.action_home()
 
     # Robot and human partner will play the game cooperatively

@@ -25,6 +25,7 @@ from asyncio import QueueEmpty
 import pyttsx3
 from Robot import Robot
 from Skeleton import NoHumansFoundException
+from BlockBuildingGame import BlockBuildingGame
 from iCub import icub
 
 
@@ -43,10 +44,12 @@ cog.process(reload=False)
 """
 
 try:
-    time.sleep(1)
-    skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-    skeleton.plot(dimensions=2)
-except KeyboardInterrupt:
+    #time.sleep(1)
+    #skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+    #skeleton.plot(dimensions=3)
+    game = BlockBuildingGame(debug=True)
+    game.collect_single_block("right")
+finally:
     icub.cleanup()
 
 #cog = CognitiveArchitecture(debug=True)

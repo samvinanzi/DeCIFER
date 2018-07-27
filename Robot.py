@@ -17,13 +17,15 @@ from threading import Lock, Event
 yarp.Network.init()
 
 # Port names
-LEFT_EYE = "/icub/camcalib/left/out"        # Eye cameras output from the robot
-RIGHT_EYE = "/icub/camcalib/right/out"
+LEFT_EYE = "/icubSim/camcalib/left/out"        # Eye cameras output from the robot
+RIGHT_EYE = "/icubSim/camcalib/right/out"
 EYE_INPUT = "/decifer/eye:i"                # Eye camera input into DeCIFER
 SFM_RPC_SERVER = "/SFM/rpc"
 SFM_RPC_CLIENT = "/decifer/sfm/rpc"
-ARE_RPC_SERVER = "/actionsRenderingEngine/cmd:io"
-ARE_RPC_CLIENT = "/decifer/are/rpc"
+ARE_CMD_RPC_SERVER = "/actionsRenderingEngine/cmd:io"
+ARE_CMD_RPC_CLIENT = "/decifer/are/cmd/rpc"
+ARE_GET_RPC_SERVER = "/actionsRenderingEngine/get:io"
+ARE_GET_RPC_CLIENT = "/decifer/are/get/rpc"
 LBP_BOXES = "/lbpExtract/blobs:o"
 BOXES_INPUT = "/decifer/boxes:i"
 
@@ -36,7 +38,8 @@ class Robot:
         self.tts = tts.init()
         self.sfm_rpc_client = yarp.RpcClient()
         self.eye_port = yarp.Port()
-        self.are_rpc_client = yarp.RpcClient()
+        self.are_cmd_rpc_client = yarp.RpcClient()
+        self.are_get_rpc_client = yarp.RpcClient()
         self.lbp_boxes_port = yarp.BufferedPortBottle()
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()  # Default device
@@ -52,8 +55,10 @@ class Robot:
         self.sfm_rpc_client.addOutput(SFM_RPC_SERVER)
         self.eye_port.open(EYE_INPUT)                       # Eye input port and connection to external output port
         yarp.Network.connect(LEFT_EYE, EYE_INPUT)
-        self.are_rpc_client.open(ARE_RPC_CLIENT)            # ARE rpc
-        self.are_rpc_client.addOutput(ARE_RPC_SERVER)
+        self.are_cmd_rpc_client.open(ARE_CMD_RPC_CLIENT)            # ARE 'cmd' rpc
+        self.are_cmd_rpc_client.addOutput(ARE_CMD_RPC_SERVER)
+        self.are_get_rpc_client.open(ARE_GET_RPC_CLIENT)            # ARE 'get' rpc
+        self.are_get_rpc_client.addOutput(ARE_GET_RPC_SERVER)
         self.lbp_boxes_port.open(BOXES_INPUT)               # lbpExtract port and connection to external output port
         yarp.Network.connect(LBP_BOXES, BOXES_INPUT)
 
@@ -78,7 +83,7 @@ class Robot:
         res = yarp.Bottle()
         res.clear()
         # Build request
-        print("[DEBUG] ARE REQUEST: \"" + str(command) + " " + " ".join([str(s) for s in list(parameters)]) + "\"")
+        print("[DEBUG] ARE CMD REQUEST: \"" + str(command) + " " + " ".join([str(s) for s in list(parameters)]) + "\"")
         req.addString(command)
         for param in parameters:
             if isinstance(param, str):
@@ -90,10 +95,11 @@ class Robot:
                 for element in param:
                     temp.addDouble(element)
             else:
-                print("[DEBUG] Unknown or invalid type for parameter: " + param)
+                print("[ERROR] Unknown or invalid type for parameter: " + param)
                 return False
         # RPC request
-        self.sfm_rpc_client.write(req, res)
+        self.are_cmd_rpc_client.write(req, res)
+        time.sleep(2)  # Pause, to keep sequences of actions more ordered
         # Read response
         print("[DEBUG] ARE RESPONSE: " + res.toString())
         return res.get(0).asString().upper() == "ACK"
@@ -119,8 +125,7 @@ class Robot:
         return self.are_request("look", coordinates)
 
     # Drops an object
-    def action_drop(self):
-        coordinates = (0.0, 0.0, 0.0)           # todo (toy chest)
+    def action_drop(self, coordinates):
         return self.are_request("drop", "over", coordinates)
 
     # --- VISION METHODS --- #
@@ -171,7 +176,8 @@ class Robot:
         return skeleton
 
     # Returns a tuple containing the centroid of one of the objects in the field of view. Optionally, displays it.
-    def observe_for_centroids(self, display=False):
+    def observe_for_centroid(self, display=False):
+        time.sleep(1)       # Wait for vision to focus
         bottle = self.lbp_boxes_port.read(False)     # Fetches data from lbpExtract (True = blocking)
         try:
             bb_coords = [float(x) for x in bottle.get(0).toString().split()]    # Maybe find a simplier way to do this?
@@ -188,6 +194,45 @@ class Robot:
             cv2.imshow("Centroid location", frame)
             cv2.waitKey(0)
         return centroid
+
+    # Requests the robot-centered coordinates of an object on the table using ARE "get s2c" rpc command
+    def get_object_coordinates(self, centroid):
+        # Request Bottle
+        req = yarp.Bottle()
+        req.clear()
+        # Response Bottle
+        res = yarp.Bottle()
+        res.clear()
+        # Build request
+        print("[DEBUG] ARE GET REQUEST: get s2c " + str(centroid))
+        req.addString("get")
+        req.addString("s2c")
+        temp = req.addList()
+        for coordinate in centroid:
+            temp.addDouble(coordinate)
+        # RPC request
+        self.are_get_rpc_client.write(req, res)
+        # Read response
+        print("[DEBUG] ARE GET RESPONSE: " + res.toString())
+        stringlist = res.toString()
+        return [float(i) for i in list(stringlist[1:-1].split(' '))]     # Converts the response from str to float
+
+    # Returns True if the robot is holding an object, False otherwise
+    def is_holding(self):
+        # Request Bottle
+        req = yarp.Bottle()
+        req.clear()
+        # Response Bottle
+        res = yarp.Bottle()
+        res.clear()
+        # Build request
+        req.addString("get")
+        req.addString("holding")
+        # RPC request
+        self.are_get_rpc_client.write(req, res)
+        # Read response
+        print("[DEBUG] ARE GET RESPONSE: " + res.toString())
+        return res.get(0).asInt()
 
     # --- SPEECH RECOGNITION METHODS --- #
 
@@ -285,5 +330,5 @@ class Robot:
     def cleanup(self):
         print("[DEBUG] Cleaning up...")
         self.sfm_rpc_client.close()
-        self.are_rpc_client.close()
+        self.are_cmd_rpc_client.close()
         self.eye_port.close()
