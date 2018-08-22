@@ -69,13 +69,23 @@ class BlockBuildingGame:
     # Looks to one side, seeks for a cube, picks it up and gives it to the human partner
     def collect_single_block(self, direction):
         icub.action_look(self.coordinates[direction])
-        object_centroid = icub.observe_for_centroid()
+        while True:
+            object_centroid = icub.observe_for_centroid()
+            if object_centroid is None:
+                icub.say("I can't see any objects...")
+                time.sleep(2)
+            else:
+                break
         object_coordinates = icub.get_object_coordinates(list(object_centroid))
-        icub.action_take(object_coordinates)
-        icub.action_give()
-        time.sleep(5)
-        #while icub.is_holding():       # Busy waiting until the hand is freed
-        #    time.sleep(1)
+        while True:
+            if icub.action_take(object_coordinates):
+                icub.action_give()
+                time.sleep(5)
+                # while icub.is_holding():       # Busy waiting until the hand is freed
+                #    time.sleep(1)
+                break
+            else:
+                icub.say("Oh my, I wasn't able to grasp it. Let me try again.")
         icub.action_home()
 
     # Collects the blocks, in the order provided by the direction sequence

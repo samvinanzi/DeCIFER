@@ -190,7 +190,7 @@ class Robot:
             img_array, yarp_image = self.initialize_yarp_image()
             self.eye_port.read(yarp_image)
             frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-            cv2.circle(frame, (centroid[0], centroid[1]), 1, (0, 0, 0), 5)
+            cv2.circle(frame, (centroid[0], centroid[1]), 1, (255, 255, 255), 5)
             cv2.imshow("Centroid location", frame)
             cv2.waitKey(0)
         return centroid
