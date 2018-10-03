@@ -276,10 +276,13 @@ class Skeleton:
             z = np.zeros_like(x)
         else:
             z = array[:, 2]
-        ax = plt.axes(projection='3d')
+        if dimensions == 2:
+            ax = plt.gca()
+        else:
+            ax = plt.axes(projection='3d')
+            ax.set_zlabel('Z')
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
         # Connect keypoints to form skeleton
         for p1, p2 in connections:
             if p1 in nonmissing_kp and p2 in nonmissing_kp:
@@ -292,12 +295,18 @@ class Skeleton:
                 else:
                     ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
                             np.linspace(start.z, end.z), c="blue", marker='.', linestyle=':', linewidth=0.1)
-        ax.scatter(x, y, z, c='b', marker='o', linewidths=5.0)
+        if dimensions == 2:
+            ax.scatter(x, y, c='b', marker='o', linewidths=5.0)
+        else:
+            ax.scatter(x, y, z, c='b', marker='o', linewidths=5.0)
         plt.title('Skeletal Keypoints')
         plt.grid(True)
         # Puts text
         for label, keypoint in nonmissing_kp.items():
-            ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
+            if dimensions == 2:
+                ax.text(keypoint.x, keypoint.y, label, None)
+            else:
+                ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
         if save:
             plt.savefig("plot.png")
         #ax.view_init(elev=10., azim=120)
@@ -322,10 +331,11 @@ class Skeleton:
         box = self.bounding_box()  # Fetches the bounding box dimensions
         # Iterates for each non-missing point
         for name, keypoint in self.nonmissing_keypoints(apply_to_2d=True).items():
-            cv2.circle(image, (int(keypoint.x), int(keypoint.y)), 3, color, 5)
-            cv2.putText(image, name, (int(keypoint.x), int(keypoint.y)), cv2.FONT_HERSHEY_SIMPLEX, 1, color)
+            cv2.circle(image, (int(keypoint.x), int(keypoint.y)), 25, color, -1)
+            #cv2.putText(image, name, (int(keypoint.x) - 50, int(keypoint.y) - 20), cv2.FONT_HERSHEY_SIMPLEX, 4, color)
         # Crops the image
-        roi = image[box[1]:box[3], box[0]:box[2]]
+        roi = image
+        #roi = image[box[1]:box[3], box[0]:box[2]]
         if save:
             cv2.imwrite("img/test/" + savename + ".jpg", roi)
         cv2.imshow("Skeletal ROI", roi)

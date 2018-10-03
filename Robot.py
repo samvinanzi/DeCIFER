@@ -12,6 +12,7 @@ import time
 from Skeleton import Skeleton, NoHumansFoundException
 import speech_recognition as sr
 from threading import Lock, Event
+import socket
 
 # Initialise YARP
 yarp.Network.init()
@@ -32,6 +33,9 @@ BOXES_INPUT = "/decifer/boxes:i"
 
 class Robot:
     def __init__(self):
+        self.remote_listener_ip = '127.0.0.1'    # ToDo set ! ! ! !
+        self.remote_listener_port = 50106
+
         # Initializations
         self.vocal_queue = []
         self.accepted_commands = ["START", "STOP", "YES", "NO"]
@@ -278,6 +282,26 @@ class Robot:
     # Only for debugging purposes
     def wait_and_listen_dummy(self):
         response = input("Digit the word you would pronounce: ")
+        return response
+
+    # Remote microphone service (to use on iCub with no microphones onboard)
+    def wait_and_listen_remote(self, ip=None):
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            if ip is not None:
+                client_socket.connect((ip, self.remote_listener_port))
+                print("Connected to " + ip + ":" + str(self.remote_listener_port))
+            else:
+                client_socket.connect((self.remote_listener_ip, self.remote_listener_port))
+                print("Connected to " + self.remote_listener_ip + ":" + str(self.remote_listener_port))
+            client_socket.send('listen'.encode('utf-8'))
+            print("[DEBUG] Sent request, waiting for response...")
+            response = client_socket.recv(1024).decode('utf-8')
+        except socket.error as e:
+            print("[ERROR] Connection error while connecting to " + self.remote_listener_ip)
+            response = None
+        client_socket.close()
+        print("[DEBUG] Received: " + response)
         return response
 
     # Makes the robot learn one goal
