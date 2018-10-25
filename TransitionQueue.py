@@ -56,4 +56,4 @@ class TransitionQueue:
     def was_goal_inferred(self):
         with self.lock:
             name = self.goal_name
-        return True if name else False
+        return name if name else False  # Returns the goal name instead of True for postprocessing logging purposes

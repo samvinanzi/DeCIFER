@@ -40,6 +40,7 @@ class BlockBuildingGame:
     def end(self):
         icub.say("Thank you for playing!")
         icub.cleanup()
+        self.cognition.print_log()      # Prints the full log of recorded data
 
     # Trains the robot on the current rules of the game
     def training_phase(self):
@@ -95,7 +96,7 @@ class BlockBuildingGame:
             self.collect_single_block(direction)
             time.sleep(2)
 
-    # Receives a cube and puts it down in the toy chest
+    # Receives a cube and puts it down in the toy chest     # ToDo how can the iCub know how many blocks to put away?
     def put_away(self):
         icub.action_expect()
         time.sleep(5)

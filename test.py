@@ -43,14 +43,14 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
-try:
+#try:
     #time.sleep(1)
     #skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
     #skeleton.plot(dimensions=3)
-    game = BlockBuildingGame(debug=True)
-    game.collect_single_block("right")
-finally:
-    icub.cleanup()
+#    game = BlockBuildingGame(debug=True)
+#    game.collect_single_block("right")
+#finally:
+#    icub.cleanup()
 
 #cog = CognitiveArchitecture(debug=True)
 #cog.train(reload=True)
@@ -61,9 +61,15 @@ finally:
 #world_coordinates = icub.request_3d_points([list(centroid)])
 #icub.take(world_coordinates[0])
 
-#img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0003.jpg")
+#img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0001.jpg")
+#img = cv2.imread("/home/samuele/Research/models/fullbody.jpg")
 #skeleton = Skeleton(img, icub)
+#skeleton.display(background=True, save=True, savename="fullbody", color=(0,255,255))
+#skeleton.cippitelli_norm()
+#skeleton.plot(dimensions=2)
 #print("Orientation: " + skeleton.orientation_reach())
+
+print(icub.wait_and_listen_remote())
 
 
 pass

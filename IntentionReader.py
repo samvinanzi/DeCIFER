@@ -14,13 +14,14 @@ import time
 
 
 class IntentionReader:
-    def __init__(self, transition_queue):
+    def __init__(self, transition_queue, logger):
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
         self.dataset = None  # 20-D dataset
         self.dataset2d = None  # 2-D dataset
         self.intention = Intention()
         self.tq = transition_queue    # Event queue read by the upper level
+        self.log = logger  # Logger that keeps record of what happens, for data analysis purpose
         self.env = None     # Learner object representing the learned environment
 
     # Sets a working environment
@@ -35,6 +36,7 @@ class IntentionReader:
         print("[DEBUG] " + self.__class__.__name__ + " is observing")
         i = 0
         goal_found = False
+        self.log.new_trial()
         while not goal_found:
             try:
                 # Tries to extract a skeleton
@@ -60,13 +62,18 @@ class IntentionReader:
                     self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
                     # Notify the new transition to the upper level
                     self.tq.put(cluster_id)
+                    # Increase the elapsed time in the logger
+                    self.log.update_latest_time()
                     print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
                 i += 1
             except NoHumansFoundException:
                 pass
             finally:
-                if self.tq.was_goal_inferred():     # Checks to see if a goal was found to decide if to stop processing
-                    goal_found = True
+                # Checks to see if a goal was found to decide if to stop processing
+                goal_name = self.tq.was_goal_inferred()
+                if goal_name:
+                    goal_found = True   # Exit condition
+                    self.log.update_latest_goal(goal_name)
                 else:
                     time.sleep(1 / fps)
         print("[DEBUG] " + self.__class__.__name__ + " stopped observing")      # currently unreachable

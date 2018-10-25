@@ -10,9 +10,9 @@ from IntentionReader import IntentionReader
 
 
 class LowLevel:
-    def __init__(self, transition_queue, debug):
+    def __init__(self, transition_queue, logger, debug):
         self.train = Learner(debug)
-        self.test = IntentionReader(transition_queue)
+        self.test = IntentionReader(transition_queue, logger)
 
     # Performs the training phase and outputs the training data
     def do_training(self):

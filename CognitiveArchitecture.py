@@ -8,12 +8,14 @@ from LowLevel import LowLevel
 from HighLevel import HighLevel
 from TransitionQueue import TransitionQueue
 from iCub import icub
+from Logger import Logger
 
 
 class CognitiveArchitecture:
     def __init__(self, debug=False):
         self.tq = TransitionQueue()
-        self.lowlevel = LowLevel(self.tq, debug)
+        self.log = Logger()
+        self.lowlevel = LowLevel(self.tq, self.log, debug)
         self.highlevel = HighLevel(self.tq)
 
     # Performs the training and learning
@@ -37,3 +39,7 @@ class CognitiveArchitecture:
     def terminate(self):
         self.highlevel.stop()
         icub.cleanup()
+
+    # Print the recorded data from the logger
+    def print_log(self):
+        self.log.print()
