@@ -39,8 +39,7 @@ class BlockBuildingGame:
     # Terminates the experiment
     def end(self):
         icub.say("Thank you for playing!")
-        icub.cleanup()
-        self.cognition.print_log()      # Prints the full log of recorded data
+        self.cognition.terminate()      # Stops running threads, closes YARP ports, prints the recorded data log
 
     # Trains the robot on the current rules of the game
     def training_phase(self):

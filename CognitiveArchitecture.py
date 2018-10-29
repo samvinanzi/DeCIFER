@@ -35,11 +35,12 @@ class CognitiveArchitecture:
         print("[DEBUG] " + self.__class__.__name__ + " reports goal: " + str(current_goal))
         return current_goal
 
-    # Termination
-    def terminate(self):
-        self.highlevel.stop()
-        icub.cleanup()
-
     # Print the recorded data from the logger
     def print_log(self):
         self.log.print()
+
+    # Termination
+    def terminate(self):
+        self.highlevel.stop()
+        self.print_log()
+        icub.cleanup()
