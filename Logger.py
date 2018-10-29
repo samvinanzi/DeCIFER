@@ -4,6 +4,8 @@ Class that handles the logging needed to evaluate the results of the experiments
 
 """
 
+import datetime
+
 
 # Represents a single trial, that is one goal demonstration
 class Trial:
@@ -19,7 +21,7 @@ class Trial:
 
     def __str__(self):
         return "Predicted \"" + self.goal_inferred + "\" after " + str(self.time_elapsed) + " observation" + \
-               ("s." if self.time_elapsed != 1 else ".")
+               ("s;" if self.time_elapsed != 1 else ";")
 
 
 # Collector of trials, to evaluate the whole experiment
@@ -45,5 +47,13 @@ class Logger:
             self.trials[self.latest_index].update_goal(goalname)
 
     def print(self):
-        for i in range(0, len(self.trials)):
-            print("Trial " + str(i+1) + ": " + str(self.trials[i]))
+        now = datetime.datetime.now()       # Gets the current date and time
+        file_id = "{0}_{1}_{2}_{3}_{4}_{5}".format(str(now.year), str(now.month), str(now.day), str(now.hour),
+                                                   str(now.minute), str(now.second))
+        print("\n-----------COLLECTED DATA SUMMARY-----------")
+        with open('logs/log_' + file_id + '.txt', 'w') as file:
+            for i in range(0, len(self.trials)):
+                line = "Trial " + str(i+1) + ": " + str(self.trials[i])
+                print(line)             # Prints on console
+                file.write(line + "\n")        # Saves on file
+        print("--------------------------------------------")
