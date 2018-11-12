@@ -156,8 +156,10 @@ class Learner:
                   'gold', 'bisque']
         # Sanity check
         if len(centers) > len(colors):
-            print("Error: more than 20 clusters detected, cannot display them all.")
-            raise RuntimeError
+            print("[WARNING] More than " + str(len(colors)) + " clusters detected, cannot display them all.")
+            # Extend the colors list to avoid index out of bounds during next phase
+            # Visualization will be impaired but the computation will not be invalidated
+            colors.extend(['white'] * (len(centers) - len(colors)))
         for i in range(len(centers)):
             c = Cluster(centers[i], cluster_lists[i], i, colors[i])
             self.clusters.append(c)
