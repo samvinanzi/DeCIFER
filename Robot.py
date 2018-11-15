@@ -200,11 +200,16 @@ class Robot:
             cv2.waitKey(0)
         return centroid
 
-    # Looks at the scene, collects all the blobs, calculates the total enclosing bounding box and determines the shape
-    # Returns "SQUARE" or "RECT" strings
-    def observe_for_shape(self, tolerance=0.5):
+    # Looks at the scene, counts red and non-red object and calculates the enclosing bounding box for the whole set.
+    # Returns a dict with shape, red count and non-red count.
+    def observe_for_shape_and_color(self, tolerance=0.5, percentage_threshold=70.0):
         # Step 1: fetching objects' bounding boxes
         time.sleep(1)  # Wait for vision to focus
+        output = {
+            'shape': None,
+            'red': 0,
+            'non-red': 0
+        }
         bb_list = []
         bottle = self.lbp_boxes_port.read(False)  # Fetches data from lbpExtract (True = blocking)
         index = 0
@@ -220,6 +225,11 @@ class Robot:
                 break
             print("[DEBUG] Object " + str(index) + " bounding box: " + str(bb_coords))
             bb_list.append(bb_coords)
+            # Color inspection
+            if self.is_object_red(bb_coords):
+                output['red'] += 1
+            else:
+                output['non-red'] += 1
             index = index + 1
         # Step 2: calculating the total enclosing bounding box
         coords = np.array(bb_list)
@@ -227,23 +237,28 @@ class Robot:
         max_x = np.min(coords[:, 1])
         min_y = np.min(coords[:, 2])
         max_y = np.min(coords[:, 3])
-        # Step 3: determination of the shape (square or circle)
-        # Dimensions
+        # Step 3: determination of the shape (square or long/tall rectangle)
         width = max_x - min_x
         height = max_y - min_y
         # Aspect ratio
         ar = width / height
         # A square will have an aspect ratio that is approximately equal to one, otherwise, the shape is a rectangle
-        shape = "SQUARE" if (1 - tolerance) <= ar <= (1 + tolerance) else "RECT"
-        return shape
+        if (1 - tolerance) <= ar <= (1 + tolerance):
+            output['shape'] = "SQUARE"
+        else:
+            if width > height:
+                output['shape'] = "HORIZONTAL_RECT"
+            else:
+                output['shape'] = "VERTICAL_RECT"
+        return output
 
-    # Inspect an object's color and tests whever it is red. If not, it is considered blue
-    # Returns either "RED" or "BLUE" string.
-    def observe_for_color(self, percent_thresh=70.0):
+    # Inspect an object's color and tests whever it is red.
+    def is_object_red(self, boundingbox, percentage_threshold=70.0):
+        # Retrieve and HSV image from the camera
         img_array, yarp_image = self.initialize_yarp_image()
         self.eye_port.read(yarp_image)
         frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2HSV)
-        crop = frame    # toDo crop bounding box
+        crop = frame[boundingbox[1]:boundingbox[3], boundingbox[0]:boundingbox[2]]  # Crop using the object's bounding box
         # Red has two HSV ranges, I need to match either.
         # lower mask (0-10)
         lower_red = np.array([0, 50, 50])
@@ -255,12 +270,12 @@ class Robot:
         mask1 = cv2.inRange(crop, lower_red, upper_red)
         # join the masks
         mask = mask0 + mask1
-        binary_mask = [int(bool(i)) for i in mask]      # Converts the mask to binary
+        binary_mask = [int(bool(i)) for i in mask]      # Converts the mask to binary (1: red pixel, 0: non-red pixel)
         counter = collections.Counter(binary_mask)   # Counts occurencies of both elements
         tot = len(binary_mask)
         trues = counter[1]
         p = round(trues / tot * 100, 2)     # Percentage of truths
-        return "RED" if p > percent_thresh else "BLUE"
+        return True if p > percentage_threshold else False
 
     # Requests the robot-centered coordinates of an object on the table using ARE "get s2c" rpc command
     def get_object_coordinates(self, centroid):
