@@ -28,6 +28,7 @@ from Skeleton import NoHumansFoundException
 from BlockBuildingGame import BlockBuildingGame
 from iCub import icub
 
+from belief.bayesianNetwork import BeliefNetwork
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
@@ -69,7 +70,12 @@ cog.process(reload=False)
 #skeleton.plot(dimensions=2)
 #print("Orientation: " + skeleton.orientation_reach())
 
-print(icub.wait_and_listen_remote())
+#print(icub.wait_and_listen_remote())
 
+bbn = BeliefNetwork("test", "belief/datasets/examples/helper.csv")
+print(bbn.decision_making('A'))
+bbn_e = BeliefNetwork.create_episodic([bbn], 6)
+print(bbn_e.test_query(prettyTable=True))
+print(bbn_e.decision_making('A'))
 
 pass
