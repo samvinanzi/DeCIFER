@@ -14,6 +14,7 @@ import speech_recognition as sr
 from threading import Lock, Event
 import socket
 import collections
+from Construction import Shape, Construction
 
 # Initialise YARP
 yarp.Network.init()
@@ -205,11 +206,12 @@ class Robot:
     def observe_for_shape_and_color(self, tolerance=0.5, percentage_threshold=70.0):
         # Step 1: fetching objects' bounding boxes
         time.sleep(1)  # Wait for vision to focus
-        output = {
-            'shape': None,
-            'red': 0,
-            'non-red': 0
-        }
+        #output = {
+        #    'shape': None,
+        #    'red': 0,
+        #    'non-red': 0
+        #}
+        construction = Construction()
         bb_list = []
         bottle = self.lbp_boxes_port.read(False)  # Fetches data from lbpExtract (True = blocking)
         index = 0
@@ -227,9 +229,11 @@ class Robot:
             bb_list.append(bb_coords)
             # Color inspection
             if self.is_object_red(bb_coords):
-                output['red'] += 1
+                #output['red'] += 1
+                construction.reds += 1
             else:
-                output['non-red'] += 1
+                #output['non-red'] += 1
+                construction.blues += 1
             index = index + 1
         # Step 2: calculating the total enclosing bounding box
         coords = np.array(bb_list)
@@ -244,13 +248,17 @@ class Robot:
         ar = width / height
         # A square will have an aspect ratio that is approximately equal to one, otherwise, the shape is a rectangle
         if (1 - tolerance) <= ar <= (1 + tolerance):
-            output['shape'] = "SQUARE"
+            #output['shape'] = Shape.SQUARE
+            construction.shape = Shape.SQUARE
         else:
             if width > height:
-                output['shape'] = "HORIZONTAL_RECT"
+                #output['shape'] = Shape.HORIZONTAL_RECT
+                construction.shape = Shape.HORIZONTAL_RECT
             else:
-                output['shape'] = "VERTICAL_RECT"
-        return output
+                #output['shape'] = Shape.VERTICAL_RECT
+                construction.shape = Shape.VERTICAL_RECT
+        #return Construction(output['shape'], output['red'], output['non-red'])
+        return construction
 
     # Inspect an object's color and tests whever it is red.
     def is_object_red(self, boundingbox, percentage_threshold=70.0):

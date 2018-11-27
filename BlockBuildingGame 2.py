@@ -4,11 +4,17 @@ Block building game to test the cognitive architecture. The robot will learn the
 partner to build one of the three constructions: towers, walls and castles.
 Note (for myself): the cognitive system is generic and can learn whichever goals, this experiment is specific.
 
+Version 2 with trust evaluations.
+
 """
 
 from CognitiveArchitecture import CognitiveArchitecture
 from iCub import icub
+from belief.bayesianNetwork import BeliefNetwork
+from belief.episode import Episode
 import time
+from collections import Counter
+from Construction import Shape, Construction
 
 
 class BlockBuildingGame:
@@ -19,13 +25,21 @@ class BlockBuildingGame:
             "right": (-1.0, 0.5, -0.5),
             "center": (0.0, 0.0, 0.0)
         }
-        self.goals = {
+        self.goals = {      # Direction sequences for each goal
             "tower": [],
             "wall": [],
             "castle": [],
             "clean": []
         }
         self.debug = debug
+        # todo move it in Robot class after experiment 1 is completed
+        self.bbn = BeliefNetwork("iCub_belief", "belief/datasets/examples/helper.csv")  # Trusting belief network
+        self.colors = {         # Position and name of the two block colors
+            "left": "blue",
+            "right": "red"
+        }
+        self.constructions = {}     # The details (shape and color) of the correct block constructions
+        # Bring iCub in home position
         icub.action_home()
 
     # Main execution of the experiment
@@ -58,7 +72,23 @@ class BlockBuildingGame:
         for intention in self.cognition.lowlevel.train.intentions:
             for cluster in intention.actions:
                 self.goals[intention.goal].append(cluster_orientations[cluster])
+        self.get_target_constructions()     # Stores the correct contructions details
         return True
+
+    # Stores the expected constructions, based on the game and how the rules were taught (the kind of constructions and
+    # their shape is fixed, but the colors are mutable and depend on the training received from the experimenter)
+    def get_target_constructions(self):
+        for goal in ["tower", "wall", "castle"]:  # The goals associated with building a construction
+            directions = self.get_directions_sequence(goal)
+            if goal == "tower":
+                shape = Shape.VERTICAL_RECT
+            elif goal == "wall":
+                shape = Shape.HORIZONTAL_RECT
+            else:
+                shape = Shape.SQUARE
+            reds = [self.colors[x] for x in directions].count("red")
+            blues = [self.colors[x] for x in directions].count("blue")
+            self.constructions[goal] = Construction(shape, reds, blues)
 
     # Robot and human partner will play the game cooperatively
     def playing_phase(self):
@@ -72,7 +102,11 @@ class BlockBuildingGame:
             if goal == "clean":
                 self.put_away()
             else:
+                if not self.is_informant_trustable():   # Trust estimation
+                    self.give_advice(goal)
+                trust = self.is_informant_trustable()
                 self.collect_blocks(goal)
+                self.evaluate_construction(goal)
             # Asks the partner if to continue the game (only if task is not unknown)
             icub.say("Do you wish to continue?")
             if self.debug:
@@ -81,6 +115,40 @@ class BlockBuildingGame:
                 response = icub.wait_and_listen()
             if response != "yes":
                 break
+
+    # Determine if the informant is to be trusted or not
+    def is_informant_trustable(self):
+        _, informant_action = self.bbn.belief_estimation('A')   # Would the informant build a correct structure?
+        return True if informant_action == 'A' else False
+
+    # Gives advice to an untrustable informant
+    def give_advice(self, goal):
+        icub.say("I just want to be sure you remember the rules.")
+        direction_sequence = self.get_directions_sequence(self.goals[goal])
+        string = "Are you building a " + goal + "? In that case, you'll need: "
+        # Counts the occurencies of left/right for the inferred goal, associates them to colors, orders them and prints
+        # them in a readeable (speakable) format.
+        count = Counter(direction_sequence)
+        for i, duple in enumerate(count.most_common(2)):
+            if i == 1:
+                string += " and "
+            string += str(duple[1]) + " " + self.colors[duple[0]] + " block" + "s" if duple[1] > 1 else ""
+        if goal == "tower":
+            icub.say("You must place them in a column shape.")
+        elif goal == "wall":
+            icub.say("You must place them in a row shape.")
+        else:
+            icub.say("You must place them to form a triangle.")
+
+    # Determines if the building was constructed correctly and updates the robot's belief
+    def evaluate_construction(self, goal):
+        construction = icub.observe_for_shape_and_color()   # analyzes the built construction
+        if construction == self.constructions[goal]:        # compares it to the target one
+            new_evidence = Episode([0, 0, 0, 0])
+        else:
+            new_evidence = Episode([1, 1, 1, 1])
+        self.bbn.update_belief(new_evidence)                        # updates belief with correct or wrong episode
+        self.bbn.update_belief(new_evidence.generate_symmetric())   # symmetric episode is generated too
 
     # Determines where to obtain the blocks from
     def get_directions_sequence(self, transitions):
@@ -117,7 +185,7 @@ class BlockBuildingGame:
             self.collect_single_block(direction)
             time.sleep(2)
 
-    # Receives a cube and puts it down in the toy chest     # ToDo how can the iCub know how many blocks to put away?
+    # Receives a cube and puts it down in the toy chest     # Counting blocks? Or assuming one?
     def put_away(self):
         icub.action_expect()
         time.sleep(5)
@@ -125,5 +193,3 @@ class BlockBuildingGame:
         #    time.sleep(1)
         icub.action_drop(self.coordinates['center'])
         icub.action_home()
-
-
