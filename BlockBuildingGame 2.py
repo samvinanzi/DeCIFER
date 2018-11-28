@@ -132,7 +132,7 @@ class BlockBuildingGame:
         for i, duple in enumerate(count.most_common(2)):
             if i == 1:
                 string += " and "
-            string += str(duple[1]) + " " + self.colors[duple[0]] + " block" + "s" if duple[1] > 1 else ""
+            string += str(duple[1]) + " " + self.colors[duple[0]] + ("blocks" if duple[1] > 1 else "block")
         if goal == "tower":
             icub.say("You must place them in a column shape.")
         elif goal == "wall":
