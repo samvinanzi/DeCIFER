@@ -283,3 +283,8 @@ class BeliefNetwork:
         min = 0.25
         max = 0.75
         return ((b - a) * (x - min)) / (max - min) + a
+
+    # Determine if the informant is to be trusted or not
+    def is_informant_trustable(self):
+        reliability = self.get_reliability()    # [-1, 0) is untrustable, [0, +1] is trustable
+        return True if reliability >= 0 else False

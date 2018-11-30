@@ -18,7 +18,7 @@ from Construction import Shape, Construction
 
 
 class BlockBuildingGame:
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, fixed_goal=True):
         self.cognition = CognitiveArchitecture()
         self.coordinates = {
             "left": (-1.0, -0.5, -0.5),
@@ -39,6 +39,7 @@ class BlockBuildingGame:
             "right": "red"
         }
         self.constructions = {}     # The details (shape and color) of the correct block constructions
+        self.fixed_goal = fixed_goal        # Is the experiment in fixed or mutable goal configuration?
         # Bring iCub in home position
         icub.action_home()
 
@@ -102,11 +103,23 @@ class BlockBuildingGame:
             if goal == "clean":
                 self.put_away()
             else:
-                if not self.is_informant_trustable():   # Trust estimation
+                trust = self.bbn.is_informant_trustable()   # Trust estimation
+                if not trust:
                     self.give_advice(goal)
-                trust = self.is_informant_trustable()
                 self.collect_blocks(goal)
-                self.evaluate_construction(goal)
+                correctness = self.evaluate_construction(goal)
+                if not self.fixed_goal and not trust and not correctness:
+                    icub.say("I've noticed that you keep performing actions I can't understand. \
+                    Do you wish to train me on them?")
+                    if self.debug:
+                        response = icub.wait_and_listen_dummy()
+                    else:
+                        response = icub.wait_and_listen()
+                    if response != "yes":
+                        continue
+                    else:
+                        # Undergo a new training
+                        pass    # toDo
             # Asks the partner if to continue the game (only if task is not unknown)
             icub.say("Do you wish to continue?")
             if self.debug:
@@ -115,11 +128,6 @@ class BlockBuildingGame:
                 response = icub.wait_and_listen()
             if response != "yes":
                 break
-
-    # Determine if the informant is to be trusted or not
-    def is_informant_trustable(self):
-        _, informant_action = self.bbn.belief_estimation('A')   # Would the informant build a correct structure?
-        return True if informant_action == 'A' else False
 
     # Gives advice to an untrustable informant
     def give_advice(self, goal):
@@ -141,20 +149,24 @@ class BlockBuildingGame:
             icub.say("You must place them to form a triangle.")
 
     # Determines if the building was constructed correctly and updates the robot's belief
+    # Returns true or false based on the evaluation
     def evaluate_construction(self, goal):
         construction = icub.observe_for_shape_and_color()   # analyzes the built construction
         if construction == self.constructions[goal]:        # compares it to the target one
             new_evidence = Episode([0, 0, 0, 0])
+            correct = True
         else:
             new_evidence = Episode([1, 1, 1, 1])
+            correct = False
         self.bbn.update_belief(new_evidence)                        # updates belief with correct or wrong episode
         self.bbn.update_belief(new_evidence.generate_symmetric())   # symmetric episode is generated too
+        return correct
 
     # Determines where to obtain the blocks from
-    def get_directions_sequence(self, transitions):
-        # Filters out the center positions to obtain a sequence of only lefts and rights and deletes the first one which
-        # is supposedly already been performed by the human
-        return list(filter(lambda x: x != "center", transitions))[1:]
+    def get_directions_sequence(self, goal):
+        transitions = self.goals[goal]
+        # Filters out the center positions to obtain a sequence of only lefts and rights
+        return list(filter(lambda x: x != "center", transitions))   # previously was [1:]
 
     # Looks to one side, seeks for a cube, picks it up and gives it to the human partner
     def collect_single_block(self, direction):
@@ -180,8 +192,9 @@ class BlockBuildingGame:
 
     # Collects the blocks, in the order provided by the direction sequence
     def collect_blocks(self, goal):
-        direction_sequence = self.get_directions_sequence(self.goals[goal])
-        for direction in direction_sequence:
+        # Deletes the first one which is supposedly already been performed by the human
+        direction_sequence = self.get_directions_sequence(goal)
+        for direction in direction_sequence[1:]:
             self.collect_single_block(direction)
             time.sleep(2)
 

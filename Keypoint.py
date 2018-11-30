@@ -1,5 +1,5 @@
 """
-Keypoint class that represents a 4-D vector containing coordinates and confidence value for a skeleton joint.
+Keypoint class that represents a 3-D vector containing coordinates for a skeleton joint.
 It can be used in simulation by just keeping constant the z-plane.
 """
 
@@ -32,3 +32,9 @@ class Keypoint:
 
     def __str__(self):
         return "(" + str(self.x) + ", " + str(self.y) + ", " + str(self.z) + ")"
+
+    def __eq__(self, other):
+        if self.x == other.x and self.y == other.y and self.z == self.z:
+            return True
+        else:
+            return False
