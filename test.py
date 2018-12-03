@@ -72,13 +72,14 @@ cog.process(reload=False)
 
 #print(icub.wait_and_listen_remote())
 
-bbn = BeliefNetwork("test", "belief/datasets/examples/tricker.csv")
+#bbn = BeliefNetwork("test", "belief/datasets/examples/tricker.csv")
 #print(bbn.decision_making('A'))
 #bbn_e = BeliefNetwork.create_episodic([bbn], 6)
 #print(bbn_e.test_query(prettyTable=True))
 #print(bbn_e.decision_making('A'))
-prediction = bbn.belief_estimation('A')
-rel = bbn.get_reliability()
-print("REL: " + str(rel))
+#prediction = bbn.belief_estimation('A')
+#rel = bbn.get_reliability()
+#print("REL: " + str(rel))
+
 
 pass

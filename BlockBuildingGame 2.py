@@ -119,7 +119,7 @@ class BlockBuildingGame:
                         continue
                     else:
                         # Undergo a new training
-                        pass    # toDo
+                        self.cognition.update()
             # Asks the partner if to continue the game (only if task is not unknown)
             icub.say("Do you wish to continue?")
             if self.debug:

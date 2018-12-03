@@ -5,6 +5,7 @@ extraction to cluster generation.
 
 """
 
+from Skeleton import Skeleton
 from Cluster import Cluster
 from Intention import Intention
 import numpy as np
@@ -37,8 +38,12 @@ class Learner:
     # --- INITIALIZATION METHODS --- #
 
     # Acquires and processes the training data
-    def learn(self, savedir="objects/"):
-        self.generate_skeletons()
+    # Can be a new, fresh learning or the update of an existing knowledge base
+    def learn(self, new=True, savedir="objects/"):
+        if new:
+            self.generate_skeletons()
+        else:
+            self.update_knowledge()
         self.generate_dataset()
         self.do_pca()
         self.generate_clusters()
@@ -97,7 +102,7 @@ class Learner:
     def generate_skeletons(self):
         # Loops for all the goals to be learned
         finished = False
-        i=0
+        i = 0
         while not finished:
             icub.say("Please, start demonstrating.")
             # Learns a single goal
@@ -230,9 +235,62 @@ class Learner:
             }
             for skeleton_id in cluster.skeleton_ids:
                 orientations[self.skeletons[skeleton_id].orientation_reach()] += 1
-            #cluster.orientation = max(orientations)
             output[cluster.id] = max(orientations)
         return output
+
+    # Updates the knowledge base with a new goal
+    # If the name of the goal is already know, replaces the previous training received
+    def update_knowledge(self):
+        # Fetch the last id of the dataset
+        last_id = max([skeleton.id for skeleton in self.skeletons])
+        # Learn one new goal
+        print("[DEBUG] Acquiring a new goal...")
+        new_skeletons, new_goal = icub.record_goal(last_id+1, fps=2, debug=self.debug)
+        # Check to see if the goal is a new one or a replacement
+        if new_goal in self.goal_labels:
+            # Get the id of the old goal which is being replacing
+            discard_id = self.goal_labels.index(new_goal)
+            self.dataset_shift(discard_id, new_skeletons)
+        else:
+            self.skeletons.extend(new_skeletons)  # extend instead of append to avoid nesting lists
+            self.goal_labels.append(new_goal)
+            self.offsets.append(len(new_skeletons) + max(self.offsets))
+        # Re-train the system
+        self.learn(new=False, savedir=None)
+
+    # Replaces a skeleton dataset for a specified goal. The existing skeletons associated to the training of that task
+    # are eliminated, the new ones are appended to the set and all the ids are shifted left to guarantee continuity
+    def dataset_shift(self, discard_id, new_set):
+        # Sanity checks
+        assert 0 <= discard_id <= len(self.offsets)-1, "[ERROR] discard_id must be a valid index of the offsets list."
+        assert all(isinstance(n, Skeleton) for n in new_set), "[ERROR] new_set must contain Skeleton types."
+        # Delete the deprecated elements from the dataset
+        discard_offset = self.offsets[discard_id]
+        if discard_id == 0:
+            offset_begin = 0
+        else:
+            offset_begin = self.offsets[discard_id - 1]
+        for x in range(offset_begin, discard_offset):
+            self.skeletons[x] = None
+        self.skeletons = [x for x in self.skeletons if x is not None]
+        # Extend with the new data
+        self.skeletons.extend(new_set)
+        # Shift back the ids of the elements
+        for i in range(len(self.skeletons)):
+            if self.skeletons[i].id != i:
+                self.skeletons[i].id = i
+        # Fix the offsets
+        start = 0
+        for i in range(len(self.offsets)):      # Offsets to subset lengths
+            temp = self.offsets[i]
+            self.offsets[i] -= start
+            start = temp
+        self.offsets.extend([len(new_set)])     # Addition of the new subset length
+        self.offsets.pop(discard_id)            # Removal of the unused subset length
+        start = 0
+        for i in range(len(self.offsets)):      # Subset lengths to offsets
+            self.offsets[i] += start
+            start = self.offsets[i]
 
     # --- DISPLAY METHODS --- #
 

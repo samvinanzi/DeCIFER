@@ -24,6 +24,11 @@ class LowLevel:
         self.train.reload_data()
         return self.train.make_training_dataset()
 
+    # Updates the knowledge base
+    def update_knowledge(self):
+        self.train.update_knowledge()
+        return self.train.make_training_dataset()
+
     # Performs skeleton extraction, clustering and transition analysis
     def do_testing(self):
         self.test.set_environment(self.train)

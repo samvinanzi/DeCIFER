@@ -26,6 +26,16 @@ class CognitiveArchitecture:
         # Starts the high-level background thread to use it when needed
         self.highlevel.start()
 
+    # Updates a knowledge base
+    def update(self):
+        # Stops a running high-level
+        self.highlevel.stop()
+        # Performs the update
+        training_data = self.lowlevel.update_knowledge()
+        # Re-build the high level model and starts it
+        self.highlevel.build_model(training_data)
+        self.highlevel.start()
+
     # Performs the intention reading (testing)
     def read_intention(self):
         # LowLevel decodes skeletons and tries to extract cluster transitions
