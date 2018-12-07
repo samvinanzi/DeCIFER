@@ -206,11 +206,6 @@ class Robot:
     def observe_for_shape_and_color(self, tolerance=0.5, percentage_threshold=70.0):
         # Step 1: fetching objects' bounding boxes
         time.sleep(1)  # Wait for vision to focus
-        #output = {
-        #    'shape': None,
-        #    'red': 0,
-        #    'non-red': 0
-        #}
         construction = Construction()
         bb_list = []
         bottle = self.lbp_boxes_port.read(False)  # Fetches data from lbpExtract (True = blocking)
@@ -229,10 +224,8 @@ class Robot:
             bb_list.append(bb_coords)
             # Color inspection
             if self.is_object_red(bb_coords):
-                #output['red'] += 1
                 construction.reds += 1
             else:
-                #output['non-red'] += 1
                 construction.blues += 1
             index = index + 1
         # Step 2: calculating the total enclosing bounding box
@@ -248,16 +241,12 @@ class Robot:
         ar = width / height
         # A square will have an aspect ratio that is approximately equal to one, otherwise, the shape is a rectangle
         if (1 - tolerance) <= ar <= (1 + tolerance):
-            #output['shape'] = Shape.SQUARE
             construction.shape = Shape.SQUARE
         else:
             if width > height:
-                #output['shape'] = Shape.HORIZONTAL_RECT
                 construction.shape = Shape.HORIZONTAL_RECT
             else:
-                #output['shape'] = Shape.VERTICAL_RECT
                 construction.shape = Shape.VERTICAL_RECT
-        #return Construction(output['shape'], output['red'], output['non-red'])
         return construction
 
     # Inspect an object's color and tests whever it is red.
@@ -306,6 +295,13 @@ class Robot:
         print("[DEBUG] ARE GET RESPONSE: " + res.toString())
         stringlist = res.toString()
         return [float(i) for i in list(stringlist[1:-1].split(' '))]     # Converts the response from str to float
+
+    # Counts the number of objects seen by the robot
+    def count_objects(self):
+        # Step 1: fetching objects' bounding boxes
+        time.sleep(1)  # Wait for vision to focus
+        bottle = self.lbp_boxes_port.read(False)  # Fetches data from lbpExtract (True = blocking)
+        return max(int(bottle.size()), 0)   # Returns at least zero
 
     # Returns True if the robot is holding an object, False otherwise
     def is_holding(self):

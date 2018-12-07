@@ -92,34 +92,35 @@ class BlockBuildingGame:
             self.constructions[goal] = Construction(shape, reds, blues)
 
     # Robot and human partner will play the game cooperatively
-    def playing_phase(self):
+    def playing_phase(self, unrecognized_limit=5):
         icub.say("Ok, time to play! Feel free to start.")
+        unrecognized_actions = 0
         while True:
             goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
             # Acting, based on the intention read
-            if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
-                continue
-            # If not unknown, perform an action
-            if goal == "clean":
-                self.put_away()
+            if goal == "unknown":  # If unknown, wait
+                unrecognized_actions += 1
+                if unrecognized_actions >= unrecognized_limit:
+                    icub.say("I'm sorry, I can't understand what you are doing. I can't help you.")
+                    icub.say("Do you wish to teach me something new?")
+                    self.ask_for_update()
+                else:
+                    continue    # Start again from the beginning of the loop (skipping the request for continuation)
             else:
-                trust = self.bbn.is_informant_trustable()   # Trust estimation
-                if not trust:
-                    self.give_advice(goal)
-                self.collect_blocks(goal)
-                correctness = self.evaluate_construction(goal)
-                if not self.fixed_goal and not trust and not correctness:
-                    icub.say("I've noticed that you keep performing actions I can't understand. \
-                    Do you wish to train me on them?")
-                    if self.debug:
-                        response = icub.wait_and_listen_dummy()
-                    else:
-                        response = icub.wait_and_listen()
-                    if response != "yes":
-                        continue
-                    else:
-                        # Undergo a new training
-                        self.cognition.update()
+                # If not unknown, perform an action
+                unrecognized_actions = 0
+                if goal == "clean":
+                    self.put_away()
+                else:       # Tower, wall or castle
+                    trust = self.bbn.is_informant_trustable()           # A priori trust estimation
+                    if not trust:
+                        self.give_advice(goal)
+                    self.collect_blocks(goal)                           # Task execution
+                    correctness = self.evaluate_construction(goal)      # A posteriori trust update
+                    if not self.fixed_goal and not trust and not correctness:
+                        icub.say("I've noticed that you keep performing actions I can't understand. \
+                        Do you wish to train me on them?")
+                        self.ask_for_update()
             # Asks the partner if to continue the game (only if task is not unknown)
             icub.say("Do you wish to continue?")
             if self.debug:
@@ -162,6 +163,16 @@ class BlockBuildingGame:
         self.bbn.update_belief(new_evidence.generate_symmetric())   # symmetric episode is generated too
         return correct
 
+    # Ask the partner if he or she desires to update the knowledge base of the robot
+    def ask_for_update(self):
+        if self.debug:
+            response = icub.wait_and_listen_dummy()
+        else:
+            response = icub.wait_and_listen()
+        if response == "yes":
+            self.cognition.update()     # Undergo a new training
+        return True if response == "yes" else False
+
     # Determines where to obtain the blocks from
     def get_directions_sequence(self, goal):
         transitions = self.goals[goal]
@@ -169,7 +180,8 @@ class BlockBuildingGame:
         return list(filter(lambda x: x != "center", transitions))   # previously was [1:]
 
     # Looks to one side, seeks for a cube, picks it up and gives it to the human partner
-    def collect_single_block(self, direction):
+    # If the latter doesn't pick it up, puts it down and picks a different colored one
+    def collect_single_block(self, direction, wait_time=5):
         icub.action_look(self.coordinates[direction])
         while True:
             object_centroid = icub.observe_for_centroid()
@@ -179,30 +191,52 @@ class BlockBuildingGame:
             else:
                 break
         object_coordinates = icub.get_object_coordinates(list(object_centroid))
-        while True:
-            if icub.action_take(object_coordinates):
-                icub.action_give()
-                time.sleep(5)
-                # while icub.is_holding():       # Busy waiting until the hand is freed
-                #    time.sleep(1)
-                break
-            else:
+        if icub.action_take(object_coordinates):
+            icub.action_give()
+            # Gives some time to the partner to collect the block from its hand
+            delay_time = 0
+            while delay_time < wait_time:
+                if icub.is_holding():
+                    delay_time += 1
+                    time.sleep(1)
+                else:
+                    break
+            if delay_time >= wait_time:
+                # The user is not collecting the block
+                if direction != "center":       # This should always be true, just a sanity control
+                    icub.say("Maybe I was wrong and you need a different colored block.")
+                else:
+                    icub.say("Maybe you don't need this block.")
+                # Puts away the block
+                icub.action_drop(self.coordinates[direction])
+                # Swaps the direction
+                if direction == "left":
+                    self.collect_single_block("right")
+                elif direction == "right":
+                    self.collect_single_block("left")
+            else:   # if action_take fails
                 icub.say("Oh my, I wasn't able to grasp it. Let me try again.")
         icub.action_home()
 
     # Collects the blocks, in the order provided by the direction sequence
     def collect_blocks(self, goal):
-        # Deletes the first one which is supposedly already been performed by the human
         direction_sequence = self.get_directions_sequence(goal)
-        for direction in direction_sequence[1:]:
-            self.collect_single_block(direction)
+        completed_steps = icub.count_objects()
+        for i in range(completed_steps, len(direction_sequence)):
+            self.collect_single_block(direction_sequence[i])
             time.sleep(2)
 
-    # Receives a cube and puts it down in the toy chest     # Counting blocks? Or assuming one?
-    def put_away(self):
-        icub.action_expect()
-        time.sleep(5)
-        # while not icub.is_holding():       # Busy waiting until the hand is loaded
-        #    time.sleep(1)
-        icub.action_drop(self.coordinates['center'])
-        icub.action_home()
+    # Receives a cube and puts it down in the toy chest
+    def put_away(self, wait_time=5):
+        blocks = icub.count_objects()
+        for i in range(0, blocks):
+            icub.action_expect()
+            delay_time = 0
+            while delay_time < wait_time:   # Waits for its hand to be loaded, or cancels its action
+                if not icub.is_holding():
+                    delay_time += 1
+                    time.sleep(1)
+                else:
+                    icub.action_drop(self.coordinates['center'])
+                    break
+            icub.action_home()
