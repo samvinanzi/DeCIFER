@@ -20,8 +20,8 @@ from Construction import Shape, Construction
 yarp.Network.init()
 
 # Port names
-LEFT_EYE = "/icubSim/camcalib/left/out"        # Eye cameras output from the robot
-RIGHT_EYE = "/icubSim/camcalib/right/out"
+LEFT_EYE = "/icub/camcalib/left/out"        # Eye cameras output from the robot
+RIGHT_EYE = "/icub/camcalib/right/out"
 EYE_INPUT = "/decifer/eye:i"                # Eye camera input into DeCIFER
 SFM_RPC_SERVER = "/SFM/rpc"
 SFM_RPC_CLIENT = "/decifer/sfm/rpc"
@@ -301,7 +301,10 @@ class Robot:
         # Step 1: fetching objects' bounding boxes
         time.sleep(1)  # Wait for vision to focus
         bottle = self.lbp_boxes_port.read(False)  # Fetches data from lbpExtract (True = blocking)
-        return max(int(bottle.size()), 0)   # Returns at least zero
+        try:
+            return int(bottle.size())
+        except AttributeError:  # If a NoneType object is returned, that means that nothing was seen
+            return 0
 
     # Returns True if the robot is holding an object, False otherwise
     def is_holding(self):

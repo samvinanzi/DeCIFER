@@ -25,7 +25,8 @@ from asyncio import QueueEmpty
 import pyttsx3
 from Robot import Robot
 from Skeleton import NoHumansFoundException
-from BlockBuildingGame import BlockBuildingGame
+#from BlockBuildingGame import BlockBuildingGame
+from BlockBuildingGame2 import BlockBuildingGame
 from iCub import icub
 
 from belief.bayesianNetwork import BeliefNetwork
@@ -81,5 +82,22 @@ cog.process(reload=False)
 #rel = bbn.get_reliability()
 #print("REL: " + str(rel))
 
+#game = BlockBuildingGame()
+#icub.action_look(game.coordinates["left"])
+#for i in range(0, 3):
+#    print("Pass " + str(i))
+#    n = icub.count_objects()
+#    print(n)
+#    icub.say(str(n))
+#    time.sleep(3)
 
-pass
+
+#icub.action_home()
+#icub.action_look((-1.0, -0.5, -0.5))
+icub.say("3, 2, 1...")
+icub.say("Cheese!")
+skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+skeleton.plot(dimensions=2)
+
+
+icub.cleanup()

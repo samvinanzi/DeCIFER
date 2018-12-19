@@ -63,7 +63,7 @@ class Skeleton:
             print("[" + str(self.id) + "] One human detected.")
         keypoints = keypoints[0]
         # KEYPOINT REDUCTION
-        # Calculates a new keypoint for the hips as the median between points 8 and 11 fo the original skeleton
+        # Calculates a new keypoint for the hips as the median between points 8 and 11 of the original skeleton
         point8 = keypoints[8]
         point11 = keypoints[11]
         newpoint = np.array([(point8[0] + point11[0]) / 2, (point8[1] + point11[1]) / 2, (point8[2] + point11[2]) / 2])
@@ -105,8 +105,16 @@ class Skeleton:
             "LAnkle": Keypoint(keypoints[9][0], keypoints[9][1]),
             "Torso": Keypoint(keypoints[10][0], keypoints[10][1])
         }
+        # Set to 0 all the 3D keypoints that were null in the 2d representation
+        for key, _ in self.keypoints.items():
+            if self.keypoints_2d[key].is_empty():
+                self.keypoints[key] = Keypoint(0.0, 0.0, 0.0)
         # Generates the image based on the 2D pixel keypoint
         self.generate_image()
+        # Saves data, for development purposes
+        import pickle
+        pickle.dump(self.keypoints_2d, open("objects/test/" + "keypoints2d.p", "wb"))
+        pickle.dump(self.keypoints, open("objects/test/" + "keypoints3d.p", "wb"))
 
     # Computes the missing keypoint names
     def get_missing_keypoints(self, apply_on_2d=False):
