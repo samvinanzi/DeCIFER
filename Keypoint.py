@@ -30,6 +30,13 @@ class Keypoint:
     def is_empty(self):
         return True if self.x == 0.0 and self.y == 0.0 and self.z == 0.0 else False
 
+    # Converts from the robot's ROOT to WORLD reference frames
+    def root_to_world(self):
+        temp = self.x
+        self.x = self.y
+        self.y = self.z
+        self.z = temp
+
     def __str__(self):
         return "(" + str(self.x) + ", " + str(self.y) + ", " + str(self.z) + ")"
 

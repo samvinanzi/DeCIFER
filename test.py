@@ -28,7 +28,7 @@ from Skeleton import NoHumansFoundException
 #from BlockBuildingGame import BlockBuildingGame
 from BlockBuildingGame2 import BlockBuildingGame
 from iCub import icub
-
+import pickle
 from belief.bayesianNetwork import BeliefNetwork
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -94,10 +94,19 @@ cog.process(reload=False)
 
 #icub.action_home()
 #icub.action_look((-1.0, -0.5, -0.5))
-icub.say("3, 2, 1...")
-icub.say("Cheese!")
-skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-skeleton.plot(dimensions=2)
+#icub.say("3, 2, 1...")
+#icub.say("Cheese!")
+#skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+#skeleton.plot(dimensions=2)
 
+
+#icub.cleanup()
+
+
+#keypoints = pickle.load(open("objects/test/pose3 (clean)/keypoints3d.p", "rb"))
+#keypoints2d = pickle.load(open("objects/test/pose3 (clean)/keypoints2d.p", "rb"))
+print("Starting...")
+sk = Skeleton(None, icub)
+#sk.plot(dimensions=3)
 
 icub.cleanup()

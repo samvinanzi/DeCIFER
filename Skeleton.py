@@ -35,18 +35,26 @@ op = PyOP.OpenPose(net_pose_size, net_face_hands_size, output_size, model, model
 
 class Skeleton:
     def __init__(self, image, robot, id=0):
-        self.origin = image.copy()
-        self.keypoints = {}
-        self.keypoints_2d = {}
+        self.origin = image.copy()  # None <- Developmental purposes
+        self.keypoints = {}         # 3D skeleton, originated by mixture of OpenPose and SFM
+        self.keypoints_2d = {}      # Original 2D skeleton obtained from OpenPose
         self.img = None
         self.id = id
         # Performs computations
         self.prepare(robot)
 
+    # Developmental pruposes. Delete as soon as possible.
+    def dev_load_demo_skeleton(self):
+        import pickle
+        folder = "pose3"
+        self.keypoints = pickle.load(open("objects/test/" + folder + "/keypoints3d.p", "rb"))
+        self.keypoints_2d = pickle.load(open("objects/test/" + folder + "/keypoints2d.p", "rb"))
+
     # Prepares the data for usage and clustering
     def prepare(self, robot):
-        self.get_keypoints(robot)
-        # self.convert_to_cartesian() # Not needed, SFM already converts pixel to cartesian
+        self.get_keypoints(robot)     # Disable for demo testing
+        self.compute_3d_keypoints()
+        # self.convert_to_cartesian() # Not needed, SFM already converts pixel to cartesian (still true?)
         self.cippitelli_norm()
 
     # Retrieves the skeletal keypoints
@@ -75,7 +83,6 @@ class Skeleton:
         keypoints = np.delete(keypoints, 2, axis=1)
         # Converts the keypoints to 3D representation
         keypoints3d = robot.request_3d_points(keypoints.tolist())
-        #keypoints3d = np.append(keypoints, np.zeros((11, 1)), axis=1)   # 2D degeneration, for testing
         # Saves them as a dictionary of Keypoints objects
         self.keypoints = {
             "Head": Keypoint(keypoints3d[0][0], keypoints3d[0][1], keypoints3d[0][2]),
@@ -126,6 +133,9 @@ class Skeleton:
         for name, keypoint in items:
             if keypoint.is_empty():
                 output.append(name)
+        # Torso is the reference point, we always want it included even if will be (0,0,0)
+        if "Torso" in output:
+            output.remove("Torso")
         return output
 
     # Returns the non-missing keypoint dictionary
@@ -136,6 +146,32 @@ class Skeleton:
             keypoints = self.keypoints
         missing_keypoints = self.get_missing_keypoints(apply_to_2d)
         return {key: keypoints[key] for key in keypoints if key not in missing_keypoints}
+
+    # Sets the Torso as the reference depth for the other keypoints
+    def change_depth_reference(self):
+        reference = self.keypoints['Torso'].z
+        for jointname, keypoint in self.keypoints.items():
+            keypoint.z -= reference
+            self.keypoints[jointname] = keypoint
+
+    # Creates a new set of keypoints using X,Y coordinates from OpenPose and Z from the disparity map calculation
+    def set_depth(self):
+        new_kp = {}
+        for jointname, keypoint in self.keypoints_2d.items():
+            if keypoint.is_empty():
+                new_kp[jointname] = Keypoint()  # Creates an empty keypoint
+            else:
+                kp2d = self.keypoints_2d[jointname]
+                kp3d = self.keypoints[jointname]
+                new_kp[jointname] = Keypoint(kp2d.x, kp2d.y, kp3d.z)
+        return new_kp
+
+    # Using the 2D skeleton and the disparity map information, creates the new 3D skeleton mixing the data
+    def compute_3d_keypoints(self):
+        for joint, keypoint in self.keypoints.items():
+            keypoint.root_to_world()
+        self.change_depth_reference()
+        self.keypoints = self.set_depth()
 
     # Converts the dictionary of Keypoints into an ordered numpy array
     # To use it on the 2D keypoint set, just pass it as an argument
@@ -294,8 +330,8 @@ class Skeleton:
         # Connect keypoints to form skeleton
         for p1, p2 in connections:
             if p1 in nonmissing_kp and p2 in nonmissing_kp:
-                start = self.keypoints_2d[p1]
-                end = self.keypoints_2d[p2]
+                start = self.keypoints[p1]
+                end = self.keypoints[p2]
                 if dimensions == 2:
                     ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
                             np.zeros_like(np.linspace(start.x, end.x)), c="blue", marker='.', linestyle=':',
@@ -306,7 +342,7 @@ class Skeleton:
         if dimensions == 2:
             ax.scatter(x, y, c='b', marker='o', linewidths=5.0)
         else:
-            ax.scatter(x, y, z, c='b', marker='o', linewidths=5.0)
+            ax.scatter3D(x, y, z, zdir='z', c='b', marker='o', linewidths=5.0)
         plt.title('Skeletal Keypoints')
         plt.grid(True)
         # Puts text
@@ -317,10 +353,7 @@ class Skeleton:
                 ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
         if save:
             plt.savefig("plot.png")
-        #ax.view_init(elev=10., azim=120)
-        #for ii in range(0, 360, 1):
-        #    ax.view_init(elev=10., azim=ii)
-        #    plt.savefig("AAA/movie%d.png" % ii)
+        ax.view_init(elev=-50, azim=-89)
         plt.show()
 
     # Quickly displays the associated image for the skeleton.
