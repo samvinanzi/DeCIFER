@@ -353,7 +353,7 @@ class Skeleton:
                 ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
         if save:
             plt.savefig("plot.png")
-        ax.view_init(elev=-50, azim=-89)
+        ax.view_init(elev=-65, azim=-90)
         plt.show()
 
     # Quickly displays the associated image for the skeleton.
@@ -372,8 +372,8 @@ class Skeleton:
         box = self.bounding_box()  # Fetches the bounding box dimensions
         # Iterates for each non-missing point
         for name, keypoint in self.nonmissing_keypoints(apply_to_2d=True).items():
-            cv2.circle(image, (int(keypoint.x), int(keypoint.y)), 25, color, -1)
-            #cv2.putText(image, name, (int(keypoint.x) - 50, int(keypoint.y) - 20), cv2.FONT_HERSHEY_SIMPLEX, 4, color)
+            cv2.circle(image, (int(keypoint.x), int(keypoint.y)), 5, color, -1)
+            cv2.putText(image, name, (int(keypoint.x) - 50, int(keypoint.y) - 20), cv2.FONT_HERSHEY_PLAIN, 1, color)
         # Crops the image
         roi = image
         #roi = image[box[1]:box[3], box[0]:box[2]]

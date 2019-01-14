@@ -97,16 +97,45 @@ cog.process(reload=False)
 #icub.say("3, 2, 1...")
 #icub.say("Cheese!")
 #skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-#skeleton.plot(dimensions=2)
+#skeleton.display(background=True)
+#skeleton.plot(dimensions=3)
+#pickle.dump(skeleton, open("objects/test/skeleton/" + "initial.p", "wb"))
 
 
-#icub.cleanup()
+# Load the test skeletons
+def load_test_skeletons():
+    dict = {}
+    lst = []
+    path = "objects/test/skeleton/"
+    files = [f for f in os.listdir(path) if f.endswith("p")]
+    for file in files:
+        filename, file_extension = os.path.splitext(file)
+        skeleton = pickle.load(open(path + file, "rb"))
+        dict[filename] = skeleton
+        lst.append(skeleton)
+    return dict, lst
 
 
-#keypoints = pickle.load(open("objects/test/pose3 (clean)/keypoints3d.p", "rb"))
-#keypoints2d = pickle.load(open("objects/test/pose3 (clean)/keypoints2d.p", "rb"))
-print("Starting...")
-sk = Skeleton(None, icub)
+learner = Learner()
+# I create manually skeletons, goals and offsets
+skeleton_dict, skeleton_list = load_test_skeletons()
+goal_list = ["bothwave", "rightstop", "initial", "leftstop", "leftplace", "rightplace"]
+offset_list = [0, 1, 2, 3, 4, 5]
+# Set
+learner.skeletons = skeleton_list
+learner.goal_labels = goal_list
+learner.offsets = offset_list
+# Do stuff
+learner.generate_dataset()
+learner.do_pca()
+learner.generate_clusters()
+learner.generate_intentions()
+#learner.show_clustering()
+pass
+
+
+#print("Starting...")
+#sk = Skeleton(None, icub)
 #sk.plot(dimensions=3)
 
-icub.cleanup()
+#icub.cleanup()

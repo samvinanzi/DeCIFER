@@ -35,7 +35,7 @@ class Keypoint:
         temp = self.x
         self.x = self.y
         self.y = self.z
-        self.z = temp
+        self.z = -1 * temp
 
     def __str__(self):
         return "(" + str(self.x) + ", " + str(self.y) + ", " + str(self.z) + ")"
