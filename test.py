@@ -119,17 +119,21 @@ def load_test_skeletons():
 learner = Learner()
 # I create manually skeletons, goals and offsets
 skeleton_dict, skeleton_list = load_test_skeletons()
-goal_list = ["bothwave", "rightstop", "initial", "leftstop", "leftplace", "rightplace"]
-offset_list = [0, 1, 2, 3, 4, 5]
+for name, skeleton in skeleton_dict.items():
+    print(name)
+    skeleton.plot(dimensions=3)
+#skeleton_dict["rightstop"].plot(dimensions=3)
+#goal_list = ["bothwave", "rightstop", "initial", "leftstop", "leftplace", "rightplace"]
+#offset_list = [0, 1, 2, 3, 4, 5]
 # Set
-learner.skeletons = skeleton_list
-learner.goal_labels = goal_list
-learner.offsets = offset_list
+#learner.skeletons = skeleton_list
+#learner.goal_labels = goal_list
+#learner.offsets = offset_list
 # Do stuff
-learner.generate_dataset()
-learner.do_pca()
-learner.generate_clusters()
-learner.generate_intentions()
+#learner.generate_dataset()
+#learner.do_pca()
+#learner.generate_clusters()
+#learner.generate_intentions()
 #learner.show_clustering()
 pass
 

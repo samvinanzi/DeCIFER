@@ -43,18 +43,10 @@ class Skeleton:
         # Performs computations
         self.prepare(robot)
 
-    # Developmental pruposes. Delete as soon as possible.
-    def dev_load_demo_skeleton(self):
-        import pickle
-        folder = "pose3"
-        self.keypoints = pickle.load(open("objects/test/" + folder + "/keypoints3d.p", "rb"))
-        self.keypoints_2d = pickle.load(open("objects/test/" + folder + "/keypoints2d.p", "rb"))
-
     # Prepares the data for usage and clustering
     def prepare(self, robot):
         self.get_keypoints(robot)     # Disable for demo testing
         self.compute_3d_keypoints()
-        # self.convert_to_cartesian() # Not needed, SFM already converts pixel to cartesian (still true?)
         self.cippitelli_norm()
 
     # Retrieves the skeletal keypoints
@@ -118,10 +110,7 @@ class Skeleton:
                 self.keypoints[key] = Keypoint(0.0, 0.0, 0.0)
         # Generates the image based on the 2D pixel keypoint
         self.generate_image()
-        # Saves data, for development purposes
-        import pickle
-        pickle.dump(self.keypoints_2d, open("objects/test/" + "keypoints2d.p", "wb"))
-        pickle.dump(self.keypoints, open("objects/test/" + "keypoints3d.p", "wb"))
+        #self.keypoints = self.convert_to_cartesian(to_2d=True)
 
     # Computes the missing keypoint names
     def get_missing_keypoints(self, apply_on_2d=False):
@@ -249,9 +238,9 @@ class Skeleton:
         return np.array(array).ravel()
 
     # Converts pixel coordinates to cartesian
-    def convert_to_cartesian(self):
+    def convert_to_cartesian(self, to_2d=True):
         # Work on a copy of the original data
-        kps = self.nonmissing_keypoints(apply_to_2d=True)
+        kps = self.nonmissing_keypoints(apply_to_2d=to_2d)
         height, width, _ = self.origin.shape
         for name, kp in kps.items():
             kp.x = kp.x - width / 2
@@ -260,9 +249,9 @@ class Skeleton:
         return kps
 
     # Converts cartesian coordinates to pixel
-    def convert_to_pixel(self):
+    def convert_to_pixel(self, to_2d=True):
         # Work on a copy of the original data
-        kps = self.nonmissing_keypoints(apply_to_2d=True)
+        kps = self.nonmissing_keypoints(apply_to_2d=to_2d)
         height, width, _ = self.origin.shape
         for name, kp in kps.items():
             kp.x = kp.x + width/2
@@ -330,8 +319,8 @@ class Skeleton:
         # Connect keypoints to form skeleton
         for p1, p2 in connections:
             if p1 in nonmissing_kp and p2 in nonmissing_kp:
-                start = self.keypoints[p1]
-                end = self.keypoints[p2]
+                start = self.keypoints[p1] if dimensions == 3 else self.keypoints_2d[p1]
+                end = self.keypoints[p2] if dimensions == 3 else self.keypoints_2d[p2]
                 if dimensions == 2:
                     ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
                             np.zeros_like(np.linspace(start.x, end.x)), c="blue", marker='.', linestyle=':',
@@ -339,6 +328,7 @@ class Skeleton:
                 else:
                     ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
                             np.linspace(start.z, end.z), c="blue", marker='.', linestyle=':', linewidth=0.1)
+        # Plot the dots
         if dimensions == 2:
             ax.scatter(x, y, c='b', marker='o', linewidths=5.0)
         else:
@@ -353,7 +343,8 @@ class Skeleton:
                 ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
         if save:
             plt.savefig("plot.png")
-        ax.view_init(elev=-65, azim=-90)
+        if dimensions == 3:
+            ax.view_init(elev=-65, azim=-90)    # Rotate the view
         plt.show()
 
     # Quickly displays the associated image for the skeleton.
