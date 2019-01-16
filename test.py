@@ -45,19 +45,37 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
-#try:
-    #time.sleep(1)
-    #skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-    #skeleton.plot(dimensions=3)
-#    game = BlockBuildingGame(debug=True)
-#    game.collect_single_block("right")
-#finally:
-#    icub.cleanup()
+# Load the test skeletons
+def load_test_skeletons():
+    dict = {}
+    lst = []
+    path = "objects/test/skeleton/"
+    files = [f for f in os.listdir(path) if f.endswith("p")]
+    for file in files:
+        filename, file_extension = os.path.splitext(file)
+        skeleton = pickle.load(open(path + file, "rb"))
+        dict[filename] = skeleton
+        lst.append(skeleton)
+    return dict, lst
+
 
 #cog = CognitiveArchitecture(debug=True)
 #cog.train(reload=True)
-#print(cog.lowlevel.train.cluster_orientation_reach())
-#goal = cog.read_intention()
+#cog.lowlevel.train.do_pca()
+#cog.lowlevel.train.clusters = []
+#cog.lowlevel.train.intentions = []
+#cog.lowlevel.train.generate_clusters()
+#cog.lowlevel.train.generate_intentions()
+#cog.lowlevel.train.show_clustering()
+#for skeleton in cog.lowlevel.train.skeletons:
+#    skeleton.check_skeleton_consistency()
+#cog.lowlevel.train.plot_goal()
+#cog.lowlevel.train.show_clustering(just_dots=False)
+#cog.lowlevel.train.skeletons[10].plot(dimensions=3)
+#cog.lowlevel.train.skeletons[30].plot(dimensions=3)
+#cog.lowlevel.train.skeletons[50].plot(dimensions=3)
+#cog.lowlevel.train.skeletons[70].plot(dimensions=3)
+
 
 #centroid = icub.observe_for_centroids(False)
 #world_coordinates = icub.request_3d_points([list(centroid)])
@@ -94,35 +112,21 @@ cog.process(reload=False)
 
 #icub.action_home()
 #icub.action_look((-1.0, -0.5, -0.5))
-#icub.say("3, 2, 1...")
-#icub.say("Cheese!")
-#skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-#skeleton.display(background=True)
-#skeleton.plot(dimensions=3)
+icub.say("3, 2, 1...")
+icub.say("Cheese!")
+skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+skeleton.plot(dimensions=3)
 #pickle.dump(skeleton, open("objects/test/skeleton/" + "initial.p", "wb"))
 
 
-# Load the test skeletons
-def load_test_skeletons():
-    dict = {}
-    lst = []
-    path = "objects/test/skeleton/"
-    files = [f for f in os.listdir(path) if f.endswith("p")]
-    for file in files:
-        filename, file_extension = os.path.splitext(file)
-        skeleton = pickle.load(open(path + file, "rb"))
-        dict[filename] = skeleton
-        lst.append(skeleton)
-    return dict, lst
-
-
-learner = Learner()
-# I create manually skeletons, goals and offsets
-skeleton_dict, skeleton_list = load_test_skeletons()
-for name, skeleton in skeleton_dict.items():
-    print(name)
-    skeleton.plot(dimensions=3)
+#skeleton_dict, skeleton_list = load_test_skeletons()
+#for name, skeleton in skeleton_dict.items():
+#    print(name)
+#    skeleton.plot(dimensions=3)
 #skeleton_dict["rightstop"].plot(dimensions=3)
+
+#learner = Learner()
+# I create manually skeletons, goals and offsets
 #goal_list = ["bothwave", "rightstop", "initial", "leftstop", "leftplace", "rightplace"]
 #offset_list = [0, 1, 2, 3, 4, 5]
 # Set
@@ -135,11 +139,10 @@ for name, skeleton in skeleton_dict.items():
 #learner.generate_clusters()
 #learner.generate_intentions()
 #learner.show_clustering()
-pass
 
 
 #print("Starting...")
 #sk = Skeleton(None, icub)
 #sk.plot(dimensions=3)
 
-#icub.cleanup()
+icub.cleanup()

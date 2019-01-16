@@ -339,15 +339,18 @@ class Robot:
     # This function is called by the background listener thread, if running, when a new audio signal is detected
     def speech_recognition_callback(self, recognizer, audio):
         print("[DEBUG] Detected audio. Recognizing...")
+        self.say("Ok")
         try:
-            response = self.recognizer.recognize_google(audio)
+            response = self.recognizer.recognize_google(audio, show_all=True)
             with self.lock:     # In case of exception, this lock won't be opened
                 self.vocal_queue.append(response)
             self.event.set()
         except sr.UnknownValueError:
             print("[DEBUG] Google Speech Recognition could not understand audio")
+            self.say("Sorry, I didn't understand. Can you please repeat?")
         except sr.RequestError as e:
             print("[DEBUG] Could not request results from Google Speech Recognition service; {0}".format(e))
+            self.say("Sorry, I didn't understand. Can you please repeat?")
 
     # Listens for valid vocal input (commands are not processed at this stage, but None responses are discarded as
     # they are founded in the queue)
@@ -418,7 +421,7 @@ class Robot:
                 finally:
                     time.sleep(1 / fps)
                 i += 1
-                if debug and i - starting_i == 10:   # Debug mode, records 10 skeletons and continues
+                if debug and i - starting_i == 20:   # Debug mode, records 20 skeletons and continues (10s of action)
                     break
         # Stop the listener thread
         if not debug:

@@ -140,7 +140,7 @@ class Learner:
     # Performs dimensionality reduction from 30-D to 2-D through PCA
     def do_pca(self):
         # PCA to reduce dimensionality to 2D
-        self.pca = PCA(n_components=2).fit(self.dataset)
+        self.pca = PCA(n_components=3).fit(self.dataset)
         self.dataset2d = self.pca.transform(self.dataset).tolist()
 
     # Performs X-Means clustering on the provided dataset
@@ -331,4 +331,67 @@ class Learner:
         plt.ylabel('Y')
         plt.title('Cluster Centroids')
         plt.grid(True)
+        plt.show()
+
+    # Plots the whole action representations for each goal, with the associated skeletons
+    def plot_goal(self):
+        # Flush previous plots
+        plt.clf()
+        plt.cla()
+        plt.close()
+
+        last_id = 0
+        skeleton_list = []
+        for goal in self.intentions:
+            skeleton_count = 0
+            print("\nGoal: " + goal.goal + " " + str(goal.actions))
+            # Phase 1: obtain the skeletons
+            for cluster_id in goal.actions:
+                sk_id = [id for id in self.clusters[cluster_id].skeleton_ids if id > last_id][0]
+                skeleton_list.append(sk_id)
+                last_id = sk_id
+                skeleton_count += 1
+                print(str(sk_id) + " ")
+            # Phase 2: plot
+            fig = plt.figure()
+            # Start plotting each subfigure
+            for i in range(skeleton_count):
+                skeleton = self.skeletons[skeleton_list[i]]
+                # set up the axes for the i-th plot
+                ax = fig.add_subplot(1, skeleton_count, i+1, projection='3d')
+                ax.set_title("Cluster: " + str(goal.actions[i]) + ", Skeleton: " + str(skeleton_list[i]))
+                connections = [['Head', 'Neck'],
+                               ['Neck', 'Torso'],
+                               ['Neck', 'RElbow'],
+                               ['Neck', 'LElbow'],
+                               ['RElbow', 'RWrist'],
+                               ['LElbow', 'LWrist'],
+                               ['Torso', 'RKnee'],
+                               ['Torso', 'LKnee'],
+                               ['RKnee', 'RAnkle'],
+                               ['LKnee', 'LAnkle']]
+                nonmissing_kp = skeleton.nonmissing_keypoints(apply_to_2d=False)
+                array = skeleton.keypoints_to_array(nonmissing_kp)
+                x = array[:, 0]
+                y = array[:, 1]
+                z = array[:, 2]
+                ax.set_zlabel('Z')
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                # Connect keypoints to form skeleton
+                for p1, p2 in connections:
+                    if p1 in nonmissing_kp and p2 in nonmissing_kp:
+                        start = skeleton.keypoints[p1]
+                        end = skeleton.keypoints[p2]
+                        ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
+                                np.linspace(start.z, end.z), c="blue", marker='.', linestyle=':', linewidth=0.1)
+                # Plot the dots
+                ax.scatter(x, y, z, zdir='z', c='b', marker='o', linewidths=5.0)
+                plt.title('Skeleton ' + str(i) + "\nCluster: " + str(goal.actions[i]))
+                plt.grid(True)
+                # Puts text
+                for label, keypoint in nonmissing_kp.items():
+                        ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
+                ax.view_init(elev=-65, azim=-90)  # Rotate the view
+        plt.title(goal.goal)
         plt.show()

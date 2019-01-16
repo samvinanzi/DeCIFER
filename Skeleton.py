@@ -155,6 +155,16 @@ class Skeleton:
                 new_kp[jointname] = Keypoint(kp2d.x, kp2d.y, kp3d.z)
         return new_kp
 
+    def check_skeleton_consistency(self):
+        if self.keypoints["RWrist"].z > self.keypoints["RElbow"].z:
+            temp = self.keypoints["RWrist"].z
+            self.keypoints["RWrist"].z = self.keypoints["RElbow"].z
+            self.keypoints["RElbow"].z = temp
+        if self.keypoints["LWrist"].z > self.keypoints["LElbow"].z:
+            temp = self.keypoints["LWrist"].z
+            self.keypoints["LWrist"].z = self.keypoints["LElbow"].z
+            self.keypoints["LElbow"].z = temp
+
     # Using the 2D skeleton and the disparity map information, creates the new 3D skeleton mixing the data
     def compute_3d_keypoints(self):
         for joint, keypoint in self.keypoints.items():
