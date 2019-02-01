@@ -118,4 +118,6 @@ class HighLevel(StopThread):
             # As soon as it is able to infer a goal, write it down
             if goal is not None:
                 self.tq.write_goal_name(goal)
+                # Reset all observations done until that point
+                self.observations = []
         print("[DEBUG] Shutting down " + self.__class__.__name__ + " thread.")

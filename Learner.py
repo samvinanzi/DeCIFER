@@ -23,10 +23,12 @@ from iCub import icub
 
 
 class Learner:
+    dimensions = 2              # Currently working with 2D skeletons
+
     def __init__(self, debug=False):
-        self.skeletons = []  # Observed skeletons
-        self.offsets = []  # Splits the dataset in sequences
-        self.dataset = []  # 20-D dataset
+        self.skeletons = []     # Observed skeletons
+        self.offsets = []       # Splits the dataset in sequences
+        self.dataset = []       # 20-D dataset
         self.dataset2d = []     # 2-D dataset
         self.clusters = []      # Clusters
         self.intentions = []    # Intentions
@@ -106,7 +108,7 @@ class Learner:
         while not finished:
             icub.say("Please, start demonstrating.")
             # Learns a single goal
-            skeletons, goal_name = icub.record_goal(i, 2, self.debug)
+            skeletons, goal_name = icub.record_goal(i, fps=2, debug=self.debug)
             self.skeletons.extend(skeletons)    # extend instead of append to avoid nesting lists
             self.goal_labels.append(goal_name)
             self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
@@ -130,17 +132,17 @@ class Learner:
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
         # Creates the dataset array
-        dataset = np.zeros(shape=(1, 30))
+        dataset = np.zeros(shape=(1, 10*Learner.dimensions))
         for skeleton in self.skeletons:
             # skeleton.display()
             dataset = np.vstack((dataset, skeleton.as_feature()))
         # Removes the first, empty row
         self.dataset = dataset[1:]
 
-    # Performs dimensionality reduction from 30-D to 2-D through PCA
+    # Performs dimensionality reduction from 20-D to 2-D through PCA
     def do_pca(self):
         # PCA to reduce dimensionality to 2D
-        self.pca = PCA(n_components=3).fit(self.dataset)
+        self.pca = PCA(n_components=2).fit(self.dataset)
         self.dataset2d = self.pca.transform(self.dataset).tolist()
 
     # Performs X-Means clustering on the provided dataset
@@ -303,7 +305,7 @@ class Learner:
         if not just_dots:
             # Create interactive plot
             for skeleton in self.skeletons:
-                im = OffsetImage(skeleton.img, zoom=0.08)
+                im = OffsetImage(skeleton.img, zoom=0.38)
                 coordinates = self.dataset2d[skeleton.id]
                 cluster_id = self.find_cluster_id(skeleton.id)
                 # Sanity check

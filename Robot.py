@@ -178,15 +178,20 @@ class Robot:
         # Converts the color space to RGB
         frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
         # Tries to extract the skeleton or raises a NoHumansFoundException
-        skeleton = Skeleton(frame, self, i)
+        skeleton = Skeleton(frame, i)
         return skeleton
 
     # Returns a tuple containing the centroid of one of the objects in the field of view. Optionally, displays it.
     def observe_for_centroid(self, display=False):
-        time.sleep(1)       # Wait for vision to focus
+        time.sleep(2)       # Wait for vision to focus
+        bottle = yarp.Bottle()
+        bottle.clear()
         bottle = self.lbp_boxes_port.read(False)     # Fetches data from lbpExtract (True = blocking)
+        print(bottle)
         try:
             bb_coords = [float(x) for x in bottle.get(0).toString().split()]    # Maybe find a simplier way to do this?
+            #print("[DEBUG MODE]")
+            #bb_coords = [133.0, 117.0, 164.0, 145.0]
         except AttributeError:
             print("[WARNING] No objects identified in the field of view")
             return None

@@ -25,11 +25,12 @@ from asyncio import QueueEmpty
 import pyttsx3
 from Robot import Robot
 from Skeleton import NoHumansFoundException
-#from BlockBuildingGame import BlockBuildingGame
-from BlockBuildingGame2 import BlockBuildingGame
+from BlockBuildingGame import BlockBuildingGame
+#from BlockBuildingGame2 import BlockBuildingGame
 from iCub import icub
 import pickle
 from belief.bayesianNetwork import BeliefNetwork
+from Logger import Logger
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
@@ -83,8 +84,9 @@ def load_test_skeletons():
 
 #img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0001.jpg")
 #img = cv2.imread("/home/samuele/Research/models/fullbody.jpg")
-#skeleton = Skeleton(img, icub)
-#skeleton.display(background=True, save=True, savename="fullbody", color=(0,255,255))
+#skeleton = Skeleton(img)
+#skeleton.plot(save=False)
+#skeleton.display(background=True, save=False, savename="fullbody", color=(0,255,255))
 #skeleton.cippitelli_norm()
 #skeleton.plot(dimensions=2)
 #print("Orientation: " + skeleton.orientation_reach())
@@ -112,10 +114,11 @@ def load_test_skeletons():
 
 #icub.action_home()
 #icub.action_look((-1.0, -0.5, -0.5))
-icub.say("3, 2, 1...")
-icub.say("Cheese!")
-skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-skeleton.plot(dimensions=3)
+#icub.say("3, 2, 1...")
+#icub.say("Cheese!")
+#skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
+#skeleton.plot()
+#skeleton.plot(dimensions=3)
 #pickle.dump(skeleton, open("objects/test/skeleton/" + "initial.p", "wb"))
 
 
@@ -144,5 +147,35 @@ skeleton.plot(dimensions=3)
 #print("Starting...")
 #sk = Skeleton(None, icub)
 #sk.plot(dimensions=3)
+
+
+#cog = CognitiveArchitecture(debug=True)
+#cog.train(reload=False)
+#cog.train(reload=True)
+#cog.lowlevel.train.show_clustering()
+#cog.read_intention()
+
+bb = BlockBuildingGame(debug=True)
+bb.reload_training()
+bb.playing_phase()
+bb.end()
+
+'''
+LOGGER TESTING
+log = Logger()
+log.new_trial()
+log.update_latest_time()
+log.update_latest_time()
+time.sleep(2)
+log.update_latest_time()
+log.update_latest_goal("jumping")
+log.new_trial()
+time.sleep(1)
+log.update_latest_time()
+log.update_latest_goal("jack")
+log.print()
+'''
+
+#icub.observe_for_centroid(display=True)
 
 icub.cleanup()

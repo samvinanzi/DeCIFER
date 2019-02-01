@@ -76,4 +76,4 @@ class IntentionReader:
                     self.log.update_latest_goal(goal_name)
                 else:
                     time.sleep(1 / fps)
-        print("[DEBUG] " + self.__class__.__name__ + " stopped observing")      # currently unreachable
+        print("[DEBUG] " + self.__class__.__name__ + " stopped observing")

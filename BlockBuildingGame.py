@@ -23,7 +23,7 @@ class BlockBuildingGame:
             "tower": [],
             "wall": [],
             "castle": [],
-            "clean": []
+            "stable": []
         }
         self.debug = debug
         icub.action_home()
@@ -60,19 +60,26 @@ class BlockBuildingGame:
                 self.goals[intention.goal].append(cluster_orientations[cluster])
         return True
 
+    # Reloads a previous training, to be able to play immediately
+    def reload_training(self):
+        icub.say("Let me remember the rules of the game...")
+        self.cognition.train(reload=True)
+        icub.say("Ok, done!")
+
     # Robot and human partner will play the game cooperatively
     def playing_phase(self):
-        icub.say("Ok, time to play! Feel free to start.")
+        icub.say("Time to play! Feel free to start.")
         while True:
             goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
             # Acting, based on the intention read
             if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
                 continue
             # If not unknown, perform an action
-            if goal == "clean":
-                self.put_away()
+            #if goal == "clean":
+            #    self.put_away()
             else:
-                self.collect_blocks(goal)
+                #self.collect_blocks(goal) ToDo re-enable
+                pass
             # Asks the partner if to continue the game (only if task is not unknown)
             icub.say("Do you wish to continue?")
             if self.debug:
@@ -99,6 +106,8 @@ class BlockBuildingGame:
             else:
                 break
         object_coordinates = icub.get_object_coordinates(list(object_centroid))
+        #if object_coordinates[2] > 0:
+        #    object_coordinates[2] *= -1
         while True:
             if icub.action_take(object_coordinates):
                 icub.action_give()
@@ -117,7 +126,7 @@ class BlockBuildingGame:
             self.collect_single_block(direction)
             time.sleep(2)
 
-    # Receives a cube and puts it down in the toy chest     # ToDo how can the iCub know how many blocks to put away?
+    # Receives a cube and puts it down in the toy chest
     def put_away(self):
         icub.action_expect()
         time.sleep(5)
@@ -125,5 +134,3 @@ class BlockBuildingGame:
         #    time.sleep(1)
         icub.action_drop(self.coordinates['center'])
         icub.action_home()
-
-
