@@ -226,6 +226,14 @@ class Learner:
             dict_list.append(intention.as_dict())
         return dict_list
 
+    # Summarizes the results of the training
+    def summarize_training(self):
+        print("SUMMARY OF TRAINING")
+        print("Clusters: " + str(len(self.clusters)))
+        print("Intentions:")
+        for intention in self.intentions:
+            print(str(intention.goal) + " : " + str(intention.actions))
+
     # Determines the general reach orientation of each cluster
     def cluster_orientation_reach(self):
         output = [''] * len(self.clusters)
@@ -360,7 +368,7 @@ class Learner:
             for i in range(skeleton_count):
                 skeleton = self.skeletons[skeleton_list[i]]
                 # set up the axes for the i-th plot
-                ax = fig.add_subplot(1, skeleton_count, i+1, projection='3d')
+                ax = fig.add_subplot(1, skeleton_count, i+1)
                 ax.set_title("Cluster: " + str(goal.actions[i]) + ", Skeleton: " + str(skeleton_list[i]))
                 connections = [['Head', 'Neck'],
                                ['Neck', 'Torso'],
@@ -372,12 +380,10 @@ class Learner:
                                ['Torso', 'LKnee'],
                                ['RKnee', 'RAnkle'],
                                ['LKnee', 'LAnkle']]
-                nonmissing_kp = skeleton.nonmissing_keypoints(apply_to_2d=False)
+                nonmissing_kp = skeleton.nonmissing_keypoints()
                 array = skeleton.keypoints_to_array(nonmissing_kp)
                 x = array[:, 0]
                 y = array[:, 1]
-                z = array[:, 2]
-                ax.set_zlabel('Z')
                 ax.set_xlabel('X')
                 ax.set_ylabel('Y')
                 # Connect keypoints to form skeleton
@@ -385,15 +391,14 @@ class Learner:
                     if p1 in nonmissing_kp and p2 in nonmissing_kp:
                         start = skeleton.keypoints[p1]
                         end = skeleton.keypoints[p2]
-                        ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y),
-                                np.linspace(start.z, end.z), c="blue", marker='.', linestyle=':', linewidth=0.1)
+                        ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y), c="blue", marker='.',
+                                linestyle=':', linewidth=0.1)
                 # Plot the dots
-                ax.scatter(x, y, z, zdir='z', c='b', marker='o', linewidths=5.0)
+                ax.scatter(x, y, c='b', marker='o', linewidths=5.0)
                 plt.title('Skeleton ' + str(i) + "\nCluster: " + str(goal.actions[i]))
                 plt.grid(True)
                 # Puts text
                 for label, keypoint in nonmissing_kp.items():
-                        ax.text(keypoint.x, keypoint.y, keypoint.z, label, None)
-                ax.view_init(elev=-65, azim=-90)  # Rotate the view
-        plt.title(goal.goal)
+                        ax.text(keypoint.x, keypoint.y, label, None)
+            fig.suptitle(str(goal.goal).upper())
         plt.show()

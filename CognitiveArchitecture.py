@@ -42,6 +42,7 @@ class CognitiveArchitecture:
         self.lowlevel.do_testing()
         # The above process ends when a goal has been inferred. Retrieve it
         current_goal = self.tq.get_goal_name()
+        self.tq.write_goal_name(None)   # Reset
         print("[DEBUG] " + self.__class__.__name__ + " reports goal: " + str(current_goal))
         return current_goal
 

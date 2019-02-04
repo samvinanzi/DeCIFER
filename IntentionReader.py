@@ -36,6 +36,7 @@ class IntentionReader:
         print("[DEBUG] " + self.__class__.__name__ + " is observing")
         i = 0
         goal_found = False
+        blank_detections = 0
         self.log.new_trial()
         while not goal_found:
             try:
@@ -59,12 +60,21 @@ class IntentionReader:
                 # Cluster and examine the transitions
                 cluster_id = self.env.find_closest_centroid(*feature2d)     # Unpacking of the list
                 if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
+                    blank_detections = 0    # reset
                     self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
                     # Notify the new transition to the upper level
                     self.tq.put(cluster_id)
                     # Increase the elapsed time in the logger
                     self.log.update_latest_time()
                     print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
+                else:
+                    blank_detections += 1
+                    # This avoids infinite loops. If 50 skeletons are detected with no clust transition, then the system
+                    # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
+                    if blank_detections >= 20:
+                        print("[DEBUG] Unable to infer intentions, sorry :(")
+                        self.tq.write_goal_name("failure")
+                        blank_detections = 0
                 i += 1
             except NoHumansFoundException:
                 pass

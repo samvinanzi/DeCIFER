@@ -156,7 +156,11 @@ def load_test_skeletons():
 #cog.read_intention()
 
 bb = BlockBuildingGame(debug=True)
+#bb.training_phase()
 bb.reload_training()
+#bb.cognition.lowlevel.train.summarize_training()
+#bb.cognition.lowlevel.train.show_clustering()
+#bb.cognition.lowlevel.train.plot_goal()
 bb.playing_phase()
 bb.end()
 

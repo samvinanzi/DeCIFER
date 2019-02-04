@@ -109,6 +109,11 @@ class HighLevel(StopThread):
         self.stop_flag = False  # This is done to avoid unexpected behavior
         print("[DEBUG] " + self.__class__.__name__ + " thread is running in background.")
         while not self.stop_flag:
+            # First of all, it checkes if LowLevel didn't declare a failure
+            found = self.tq.was_goal_inferred()
+            if found == "failure":
+                self.observations = []
+                continue
             # Retrieves a new observation, when available
             observation = self.tq.get()  # Blocking call: if IntentionReading is not producing, HighLevel will pend here
             print("[DEBUG][HL] Read " + str(observation) + " from transition queue")

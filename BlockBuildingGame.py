@@ -13,7 +13,7 @@ import time
 
 class BlockBuildingGame:
     def __init__(self, debug=False):
-        self.cognition = CognitiveArchitecture()
+        self.cognition = CognitiveArchitecture(debug)
         self.coordinates = {
             "left": (-1.0, -0.5, -0.5),
             "right": (-1.0, 0.5, -0.5),
@@ -26,7 +26,7 @@ class BlockBuildingGame:
             "stable": []
         }
         self.debug = debug
-        icub.action_home()
+        #icub.action_home() # todo Re-enable this
 
     # Main execution of the experiment
     def execute(self):
@@ -52,6 +52,7 @@ class BlockBuildingGame:
                 return False
             else:
                 print("Goal " + intention.goal + " correctly learned.")
+        # ToDo this must be done in reaload_training() also
         # Now the robot needs to learn the directions of movement
         cluster_orientations = self.cognition.lowlevel.train.cluster_orientation_reach()
         # Associate left / right movements for each goal
@@ -68,6 +69,7 @@ class BlockBuildingGame:
 
     # Robot and human partner will play the game cooperatively
     def playing_phase(self):
+        turn_number = 1
         icub.say("Time to play! Feel free to start.")
         while True:
             goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
@@ -81,13 +83,17 @@ class BlockBuildingGame:
                 #self.collect_blocks(goal) ToDo re-enable
                 pass
             # Asks the partner if to continue the game (only if task is not unknown)
-            icub.say("Do you wish to continue?")
+            icub.say("Do you wish to continue with turn number " + str(turn_number+1) + "?")
             if self.debug:
                 response = icub.wait_and_listen_dummy()
             else:
                 response = icub.wait_and_listen()
             if response != "yes":
                 break
+            else:
+                icub.say("Ok, go!")
+                turn_number += 1
+                #time.sleep(1)
 
     # Determines where to obtain the blocks from
     def get_directions_sequence(self, transitions):

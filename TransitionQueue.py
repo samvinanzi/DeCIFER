@@ -39,7 +39,7 @@ class TransitionQueue:
 
     # Writes the inferred goal name
     def write_goal_name(self, name):
-        assert name is not None, "invalid goal name"
+        #assert name is not None, "invalid goal name"
         with self.lock:
             self.goal_name = name
         self.name_event.set()
