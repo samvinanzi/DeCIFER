@@ -11,6 +11,8 @@ from Intention import Intention
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import matplotlib.patheffects as path_effects
+from matplotlib import gridspec
 from sklearn.decomposition import PCA
 from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 import pyclustering.cluster.xmeans as pyc
@@ -158,9 +160,9 @@ class Learner:
         # obtain results of clustering
         centers = xmeans_instance.get_centers()
         cluster_lists = xmeans_instance.get_clusters()
-        colors = ['red', 'blue', 'darkgreen', 'brown', 'violet', 'deepskyblue', 'darkgrey', 'lightsalmon', 'deeppink',
-                  'yellow', 'black', 'mediumspringgreen', 'orange', 'darkviolet', 'darkblue', 'silver', 'lime', 'pink',
-                  'gold', 'bisque']
+        colors = ['yellow', 'blue', 'red', 'brown', 'violet', 'deepskyblue', 'darkgrey', 'lightsalmon', 'deeppink',
+                  'darkgreen', 'black', 'mediumspringgreen', 'orange', 'darkviolet', 'darkblue', 'silver', 'lime',
+                  'pink', 'gold', 'bisque']
         # Sanity check
         if len(centers) > len(colors):
             print("[WARNING] More than " + str(len(colors)) + " clusters detected, cannot display them all.")
@@ -311,7 +313,7 @@ class Learner:
             print("Error: must generate clusters before trying to display them.")
             raise RuntimeError
         if not just_dots:
-            # Create interactive plot
+            # Create image plot
             for skeleton in self.skeletons:
                 im = OffsetImage(skeleton.img, zoom=0.38)
                 coordinates = self.dataset2d[skeleton.id]
@@ -323,45 +325,41 @@ class Learner:
                 else:
                     color = self.clusters[cluster_id].color
                     ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
+                    ab.set_zorder(2)
                     self.ax.add_artist(ab)
-                    # ax.text(coordinates[0]+0.0015, coordinates[1]+0.005, skeleton.id, fontsize=25)
-        plt.show()
-
-    # Plots the clusters centroids
-    def plot_clusters(self):
-        x = []
-        y = []
+        # Plots the clusters centroids
         for cluster in self.clusters:
-            x.append(cluster.centroid[0])
-            y.append(cluster.centroid[1])
-            self.ax.text(cluster.centroid[0] + 0.0015, cluster.centroid[1] + 0.005, cluster.id, fontsize=25)
-        plt.plot(x, y, 'kD')
-
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.title('Cluster Centroids')
-        plt.grid(True)
+            x = cluster.centroid[0]
+            y = cluster.centroid[1]
+            text = self.ax.text(x, y + 0.015, cluster.id, fontsize=40, color='white')
+            # Adds the black border around the text
+            text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'), path_effects.Normal()])
+            plt.scatter(x, y, zorder=3, marker='o', s=300, c=cluster.color, edgecolors='black', linewidths='2')
         plt.show()
 
     # Plots the whole action representations for each goal, with the associated skeletons
-    def plot_goal(self):
-        # Flush previous plots
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-        last_id = 0
+    def plot_goal(self, verbose=False):
+        plt.clf()           # |
+        plt.cla()           # | Flush previous plots
+        plt.close()         # |
+        last_id = -1
         skeleton_list = []
+        intention_id = 0        # Used to retrieve the correct offset value for each intention
+        previous_offset = 0
         for goal in self.intentions:
             skeleton_count = 0
-            print("\nGoal: " + goal.goal + " " + str(goal.actions))
+            if verbose:
+                print("\nGoal: \"" + goal.goal + "\"\nClusters: " + str(goal.actions))
             # Phase 1: obtain the skeletons
+            offset = self.offsets[intention_id]
             for cluster_id in goal.actions:
-                sk_id = [id for id in self.clusters[cluster_id].skeleton_ids if id > last_id][0]
+                sk_id = [id for id in self.clusters[cluster_id].skeleton_ids
+                         if (id > last_id and previous_offset <= id < offset)][0]
                 skeleton_list.append(sk_id)
                 last_id = sk_id
                 skeleton_count += 1
-                print(str(sk_id) + " ")
+            if verbose:
+                print("Skeleton ids: " + str(skeleton_list) + "\nCount: " + str(skeleton_count))
             # Phase 2: plot
             fig = plt.figure()
             # Start plotting each subfigure
@@ -369,7 +367,6 @@ class Learner:
                 skeleton = self.skeletons[skeleton_list[i]]
                 # set up the axes for the i-th plot
                 ax = fig.add_subplot(1, skeleton_count, i+1)
-                ax.set_title("Cluster: " + str(goal.actions[i]) + ", Skeleton: " + str(skeleton_list[i]))
                 connections = [['Head', 'Neck'],
                                ['Neck', 'Torso'],
                                ['Neck', 'RElbow'],
@@ -380,7 +377,7 @@ class Learner:
                                ['Torso', 'LKnee'],
                                ['RKnee', 'RAnkle'],
                                ['LKnee', 'LAnkle']]
-                nonmissing_kp = skeleton.nonmissing_keypoints()
+                nonmissing_kp = skeleton.nonmissing_keypoints(with_torso=True)
                 array = skeleton.keypoints_to_array(nonmissing_kp)
                 x = array[:, 0]
                 y = array[:, 1]
@@ -391,14 +388,19 @@ class Learner:
                     if p1 in nonmissing_kp and p2 in nonmissing_kp:
                         start = skeleton.keypoints[p1]
                         end = skeleton.keypoints[p2]
-                        ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y), c="blue", marker='.',
-                                linestyle=':', linewidth=0.1)
+                        ax.plot(np.linspace(start.x, end.x), np.linspace(start.y, end.y), c="blue", marker='|',
+                                linestyle='-', linewidth=0.2)
                 # Plot the dots
                 ax.scatter(x, y, c='b', marker='o', linewidths=5.0)
-                plt.title('Skeleton ' + str(i) + "\nCluster: " + str(goal.actions[i]))
+                plt.title('Skeleton ' + str(skeleton.id) + "\nCluster: " + str(goal.actions[i]))
                 plt.grid(True)
                 # Puts text
                 for label, keypoint in nonmissing_kp.items():
                         ax.text(keypoint.x, keypoint.y, label, None)
             fig.suptitle(str(goal.goal).upper())
+            intention_id += 1
+            previous_offset = offset
+            # Reset
+            skeleton_list = []
+            last_id = 0
         plt.show()

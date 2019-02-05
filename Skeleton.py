@@ -90,16 +90,18 @@ class Skeleton:
         }
 
     # Computes the missing keypoint names
-    def get_missing_keypoints(self):
+    def get_missing_keypoints(self, with_torso=False):
         output = []
         for name, keypoint in self.keypoints.items():
             if keypoint.is_empty():
                 output.append(name)
+        if with_torso and "Torso" in output:
+            output.remove("Torso")
         return output
 
     # Returns the non-missing keypoint dictionary
-    def nonmissing_keypoints(self):
-        missing_keypoints = self.get_missing_keypoints()
+    def nonmissing_keypoints(self, with_torso=False):
+        missing_keypoints = self.get_missing_keypoints(with_torso)
         return {key: self.keypoints[key] for key in self.keypoints if key not in missing_keypoints}
 
     # Converts the dictionary of Keypoints into an ordered numpy array
