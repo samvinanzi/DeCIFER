@@ -143,27 +143,6 @@ def load_test_skeletons():
 #learner.generate_intentions()
 #learner.show_clustering()
 
-
-#print("Starting...")
-#sk = Skeleton(None, icub)
-#sk.plot(dimensions=3)
-
-
-#cog = CognitiveArchitecture(debug=True)
-#cog.train(reload=False)
-#cog.train(reload=True)
-#cog.lowlevel.train.show_clustering()
-#cog.read_intention()
-
-bb = BlockBuildingGame(debug=True)
-#bb.training_phase()
-bb.reload_training()
-#bb.cognition.lowlevel.train.summarize_training()
-#bb.cognition.lowlevel.train.show_clustering()
-#bb.cognition.lowlevel.train.plot_goal()
-bb.playing_phase()
-bb.end()
-
 '''
 LOGGER TESTING
 log = Logger()
@@ -180,6 +159,21 @@ log.update_latest_goal("jack")
 log.print()
 '''
 
+
+bb = BlockBuildingGame(debug=True)
+#bb.training_phase()
+bb.reload_training()
+#bb.cognition.lowlevel.train.show_clustering()
+#bb.cognition.lowlevel.train.summarize_training()
+#bb.cognition.lowlevel.train.show_clustering()
+#bb.cognition.lowlevel.train.plot_goal()
+bb.playing_phase()
+bb.end()
+
+
 #icub.observe_for_centroid(display=True)
 
+
 icub.cleanup()
+
+

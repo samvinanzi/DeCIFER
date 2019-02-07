@@ -17,6 +17,7 @@ class HighLevel(StopThread):
         self.hsmm = None
         self.tq = transition_queue
         self.observations = []
+        self.library = {}       # Used in the sequence matcher
 
     # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
     # Ratio is the percetage that observed duration should be the taught one
@@ -32,7 +33,9 @@ class HighLevel(StopThread):
             data.append(entry['data'])
             # Thresholds are computed as rounded <var>% of duration of that state, minimum 1
             self.state_thresholds.append(max(1, int(round(len(entry['data']) / 100.0 * threshold_percentage))))
-        # Computate some utiliy variables
+            # Library storage
+            self.library[entry['label']] = entry['data']
+        # Compute some utiliy variables
         n = len(self.state_names)               # Number of goals
         max_size = len(max(data, key=len))      # Max length of data sequences
         obs = list(set([item for sublist in data for item in sublist]))     # List of possible observations
@@ -53,6 +56,8 @@ class HighLevel(StopThread):
             i += 1
         # HSMM model generation
         self.hsmm = MultinomialHSMM(emissions, durations, transitions, startprob=None, support_cutoff=100)
+        # Library generation
+
 
     # Infers a sequence of observations to the most probable states that generated them
     def predict(self, observations):
@@ -122,7 +127,37 @@ class HighLevel(StopThread):
             goal = self.incremental_decode()
             # As soon as it is able to infer a goal, write it down
             if goal is not None:
+                print("[DEBUG] Goal \'" + str(goal) + "\' was inferred. Trying to predict future emissions...")
+                # Try to predict future emissions
+                future_observations = self.predict_future_observations(self.observations)
+                if future_observations is not None: # If a prediction was possible, try a new inference
+                    self.observations.extend(future_observations)
+                    goal2 = self.incremental_decode()
+                    if goal2 is not None:
+                        print("[DEBUG] A new goal " + str(goal2) + " was predicted using cognitive prediction.")
+                        # If a new goal was actually predicted, use this one, otherwise stick to the previous one
+                        goal = goal2
+                else:
+                    print("[DEBUG] Future prediction didn't help. Retaining the previous inference.")
+                print("[DEBUG] Selected goal: " + str(goal))
                 self.tq.write_goal_name(goal)
                 # Reset all observations done until that point
                 self.observations = []
         print("[DEBUG] Shutting down " + self.__class__.__name__ + " thread.")
+
+    # Sequence matcher: aids the decision process by trying to generate future emissions
+    def predict_future_observations(self, observation):
+        for l in range(1, len(observation) + 1):
+            partial_obs = observation[:l]
+            matching = []
+            # Slices the lists and compares them
+            for key, value in self.library.items():
+                partial_value = value[:l]
+                if partial_obs == partial_value:
+                    matching.append(key)
+            matches = len(matching)
+            if matches == 1:  # Sequence was matched with no ambiguity
+                return self.library[matching[0]][len(observation):]
+            elif matches == 0:  # No entry in the library matched the sequence
+                return None
+        return None  # End of the sequence, ambiguity was not resolved

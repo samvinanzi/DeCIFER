@@ -9,6 +9,7 @@ from HighLevel import HighLevel
 from TransitionQueue import TransitionQueue
 from iCub import icub
 from Logger import Logger
+import time
 
 
 class CognitiveArchitecture:
@@ -55,3 +56,9 @@ class CognitiveArchitecture:
         self.highlevel.stop()
         self.print_log()
         icub.cleanup()
+
+    # DEBUG MODE -- Inserting manual observations into the transition queue for offline testing
+    def debug_transition_input(self, observations):
+        for item in observations:
+            time.sleep(0.5)
+            self.tq.put(item)
