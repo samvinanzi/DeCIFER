@@ -133,7 +133,7 @@ class HighLevel(StopThread):
                 if future_observations is not None: # If a prediction was possible, try a new inference
                     self.observations.extend(future_observations)
                     goal2 = self.incremental_decode()
-                    if goal2 is not None:
+                    if goal2 is not None and goal2 != goal:
                         print("[DEBUG] A new goal " + str(goal2) + " was predicted using cognitive prediction.")
                         # If a new goal was actually predicted, use this one, otherwise stick to the previous one
                         goal = goal2

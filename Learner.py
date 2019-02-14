@@ -17,6 +17,7 @@ from sklearn.decomposition import PCA
 from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 import pyclustering.cluster.xmeans as pyc
 from pyclustering.utils import draw_clusters
+from pyclustering.cluster.silhouette import silhouette
 import os
 import pickle
 import csv
@@ -50,7 +51,8 @@ class Learner:
             self.update_knowledge()
         self.generate_dataset()
         self.do_pca()
-        self.generate_clusters()
+        score = self.generate_clusters()
+        print("[DEBUG] Clustering silhouette score: " + str(score))
         self.generate_intentions()
         if savedir is not None:
             self.save(savedir)
@@ -160,6 +162,8 @@ class Learner:
         # obtain results of clustering
         centers = xmeans_instance.get_centers()
         cluster_lists = xmeans_instance.get_clusters()
+        # Calculate Silhouette score for each points and averages it
+        score = np.average(silhouette(list(self.dataset2d), cluster_lists).process().get_score())
         colors = ['yellow', 'blue', 'red', 'brown', 'violet', 'deepskyblue', 'darkgrey', 'lightsalmon', 'deeppink',
                   'darkgreen', 'black', 'mediumspringgreen', 'orange', 'darkviolet', 'darkblue', 'silver', 'lime',
                   'pink', 'gold', 'bisque']
@@ -174,6 +178,7 @@ class Learner:
             self.clusters.append(c)
         # generate plot and optionally display it
         self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
+        return score
 
     # Find the cluster id containing the skeleton (make it more pythonic)
     def find_cluster_id(self, skeleton_id):
@@ -342,6 +347,11 @@ class Learner:
         plt.clf()           # |
         plt.cla()           # | Flush previous plots
         plt.close()         # |
+        # Font sizes
+        plt.rcParams.update({'axes.titlesize': 24})
+        plt.rcParams.update({'axes.labelsize': 14})
+        plt.rcParams.update({'xtick.labelsize': 14})
+        plt.rcParams.update({'ytick.labelsize': 14})
         last_id = -1
         skeleton_list = []
         intention_id = 0        # Used to retrieve the correct offset value for each intention
@@ -381,8 +391,8 @@ class Learner:
                 array = skeleton.keypoints_to_array(nonmissing_kp)
                 x = array[:, 0]
                 y = array[:, 1]
-                ax.set_xlabel('X')
-                ax.set_ylabel('Y')
+                ax.set_xlabel('')
+                ax.set_ylabel('')
                 # Connect keypoints to form skeleton
                 for p1, p2 in connections:
                     if p1 in nonmissing_kp and p2 in nonmissing_kp:
