@@ -5,14 +5,13 @@ extraction to cluster generation.
 
 """
 
-from Skeleton import Skeleton
+from Skeleton import Skeleton, NoHumansFoundException
 from Cluster import Cluster
 from Intention import Intention
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.patheffects as path_effects
-from matplotlib import gridspec
 from sklearn.decomposition import PCA
 from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 import pyclustering.cluster.xmeans as pyc
@@ -23,6 +22,9 @@ import pickle
 import csv
 import math
 from iCub import icub
+import cv2
+import subprocess
+import time
 
 
 class Learner:
@@ -133,6 +135,49 @@ class Learner:
                 else:
                     icub.say("Sorry, I didn't understand. Can you repeat?")
 
+    # Debug mode for skeleton acquisition: input from file rather than from robot eyes
+    # Assumes each goal is contained in a separated subdir names as the goal itself
+    def offline_learning(self, path="/home/samuele/Research/datasets/CAD-60/data1/", volume=3):
+        tic = time.time()
+        i = 0
+        for folder in os.listdir(path):
+            print("---Processing folder: " + folder)
+            basename = os.path.join(path, folder) + "/"
+            # Load images from desired folder
+            # This line of code creates an ordered list of filenames, even if the latter are not alphabetically
+            # orderable (because front padding is missing, i.e. RGB_1, RGB_2 instead of RGB_1, RGB_10...)
+            sorted_files = [str(basename + f.decode("utf-8")) for f in
+                            subprocess.check_output("ls " + basename + "/ | sort -V", shell=True).splitlines()]
+            # Only consideres 1/volume (default 1/3) of the data
+            sorted_files = sorted_files[::volume]
+            images = np.empty(len(sorted_files), dtype=object)
+            for n in range(0, len(sorted_files)):
+                print("Veryfing: " + str(os.path.join(basename, sorted_files[n])))
+                images[n] = cv2.imread(os.path.join(basename, sorted_files[n]))
+            # Create skeletons for all of them
+            skeletons = []
+            id = 0
+            for image in images:
+                try:
+                    skeleton = Skeleton(image, id)
+                    skeletons.append(skeleton)
+                    id += 1
+                except NoHumansFoundException:
+                    continue
+            self.skeletons.extend(skeletons)
+            self.goal_labels.append(folder)
+            self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
+            i += len(skeletons)
+        dt = time.time() - tic
+        print("\n\nProcessing completed. Elapsed time: " + str(dt / 60) + " minutes.")
+        # Continue with normal learning phases
+        self.generate_dataset()
+        self.do_pca()
+        score = self.generate_clusters()
+        print("[DEBUG] Clustering silhouette score: " + str(score))
+        self.generate_intentions()
+        self.save("objects/cad60/")
+
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
         # Creates the dataset array
@@ -155,7 +200,7 @@ class Learner:
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), 2).initialize()
         # create object of X-Means algorithm that uses CCORE for processing
         # Default tolerance: 0.025
-        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=50, tolerance=0.025,
+        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=20, tolerance=0.025,
                                      criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
         # run cluster analysis
         xmeans_instance.process()
