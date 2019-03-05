@@ -30,7 +30,7 @@ import time
 class Learner:
     dimensions = 2              # Currently working with 2D skeletons
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, persist=False):
         self.skeletons = []     # Observed skeletons
         self.offsets = []       # Splits the dataset in sequences
         self.dataset = []       # 20-D dataset
@@ -41,6 +41,7 @@ class Learner:
         self.pca = None         # Trained parameters of a PCA model
         self.ax = None          # Plotting purpose
         self.debug = debug      # If true, vocal commands will be substituted by keyboard input
+        self.persist = persist  # If True, saves data structures to disk
 
     # --- INITIALIZATION METHODS --- #
 
@@ -56,7 +57,7 @@ class Learner:
         score = self.generate_clusters()
         print("[DEBUG] Clustering silhouette score: " + str(score))
         self.generate_intentions()
-        if savedir is not None:
+        if self.persist:
             self.save(savedir)
 
     # Reload already computed Controller data
@@ -137,7 +138,7 @@ class Learner:
 
     # Debug mode for skeleton acquisition: input from file rather than from robot eyes
     # Assumes each goal is contained in a separated subdir names as the goal itself
-    def offline_learning(self, path="/home/samuele/Research/datasets/CAD-60/data1/", volume=3):
+    def offline_learning(self, path="/home/samuele/Research/datasets/CAD-60/variations/", volume=5, savedir="objects/cad60/"):
         tic = time.time()
         i = 0
         for folder in os.listdir(path):
@@ -148,7 +149,7 @@ class Learner:
             # orderable (because front padding is missing, i.e. RGB_1, RGB_2 instead of RGB_1, RGB_10...)
             sorted_files = [str(basename + f.decode("utf-8")) for f in
                             subprocess.check_output("ls " + basename + "/ | sort -V", shell=True).splitlines()]
-            # Only consideres 1/volume (default 1/3) of the data
+            # Only consideres 1/volume (default 1/5) of the data
             sorted_files = sorted_files[::volume]
             images = np.empty(len(sorted_files), dtype=object)
             for n in range(0, len(sorted_files)):
@@ -176,7 +177,8 @@ class Learner:
         score = self.generate_clusters()
         print("[DEBUG] Clustering silhouette score: " + str(score))
         self.generate_intentions()
-        self.save("objects/cad60/")
+        if self.persist:
+            self.save(savedir)
 
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
@@ -279,7 +281,7 @@ class Learner:
         return dict_list
 
     # Summarizes the results of the training
-    def summarize_training(self):
+    def training_result(self):
         print("SUMMARY OF TRAINING")
         print("Clusters: " + str(len(self.clusters)))
         print("Intentions:")
@@ -384,7 +386,7 @@ class Learner:
             text = self.ax.text(x, y + 0.015, cluster.id, fontsize=40, color='white')
             # Adds the black border around the text
             text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'), path_effects.Normal()])
-            plt.scatter(x, y, zorder=3, marker='o', s=300, c=cluster.color, edgecolors='black', linewidths='2')
+            plt.scatter(x, y, zorder=3, marker='o', s=1000, c=cluster.color, edgecolors='black', linewidths='2')
         plt.show()
 
     # Plots the whole action representations for each goal, with the associated skeletons
@@ -459,3 +461,9 @@ class Learner:
             skeleton_list = []
             last_id = 0
         plt.show()
+
+    # Displays a global summary of the training process
+    def summarize_training(self):
+        self.training_result()  # Clusters and intentions
+        self.show_clustering()      # Graphical visualization of the clusters
+        #self.plot_goal()            # Goals decompositions

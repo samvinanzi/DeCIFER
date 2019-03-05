@@ -10,18 +10,25 @@ from IntentionReader import IntentionReader
 
 
 class LowLevel:
-    def __init__(self, transition_queue, logger, debug):
-        self.train = Learner(debug)
+    def __init__(self, transition_queue, logger, debug=False, offline=False, persist=False):
+        self.train = Learner(debug, persist=persist)
         self.test = IntentionReader(transition_queue, logger)
+        self.offline = offline
 
     # Performs the training phase and outputs the training data
     def do_training(self):
-        self.train.learn()
+        if self.offline:
+            self.train.offline_learning()
+        else:
+            self.train.learn()
         return self.train.make_training_dataset()
 
     # Reloads previously computed training data
     def reload_training(self):
-        self.train.reload_data()
+        path = "objects/"
+        if self.offline:
+            path += "offline/"
+        self.train.reload_data(path)
         return self.train.make_training_dataset()
 
     # Updates the knowledge base
@@ -32,5 +39,7 @@ class LowLevel:
     # Performs skeleton extraction, clustering and transition analysis
     def do_testing(self):
         self.test.set_environment(self.train)
-        self.test.observe()
-
+        if self.offline:
+            self.test.offline_observe()
+        else:
+            self.test.observe()

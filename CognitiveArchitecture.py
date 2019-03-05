@@ -13,15 +13,16 @@ import time
 
 
 class CognitiveArchitecture:
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, offline=False, persist=False):
         self.tq = TransitionQueue()
         self.log = Logger()
-        self.lowlevel = LowLevel(self.tq, self.log, debug)
+        self.lowlevel = LowLevel(self.tq, self.log, debug, offline, persist)
         self.highlevel = HighLevel(self.tq)
 
     # Performs the training and learning
     def train(self, reload=False):
         training_data = self.lowlevel.reload_training() if reload else self.lowlevel.do_training()
+        self.lowlevel.train.summarize_training()
         # Uses the training data to build the high-level model parameters
         self.highlevel.build_model(training_data)
         # Starts the high-level background thread to use it when needed

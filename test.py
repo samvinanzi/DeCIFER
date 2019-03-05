@@ -160,20 +160,21 @@ log.print()
 '''
 
 
-bb = BlockBuildingGame(debug=True)
+#bb = BlockBuildingGame(debug=True)
 #bb.training_phase()
-bb.reload_training()
-#bb.cognition.lowlevel.train.show_clustering()
-#bb.cognition.lowlevel.train.summarize_training()
-#bb.cognition.lowlevel.train.show_clustering()
-#bb.cognition.lowlevel.train.plot_goal()
-bb.playing_phase()
-bb.end()
+#bb.reload_training()
+#bb.playing_phase()
+#bb.end()
 
 
 #icub.observe_for_centroid(display=True)
+#icub.cleanup()
+
+cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+cog.train(reload=False)
+cog.lowlevel.train.summarize_training()
 
 
-icub.cleanup()
+pass
 
 
