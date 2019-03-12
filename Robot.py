@@ -183,28 +183,32 @@ class Robot:
 
     # Returns a tuple containing the centroid of one of the objects in the field of view. Optionally, displays it.
     def observe_for_centroid(self, display=False):
-        time.sleep(2)       # Wait for vision to focus
-        bottle = yarp.Bottle()
-        bottle.clear()
-        bottle = self.lbp_boxes_port.read(False)     # Fetches data from lbpExtract (True = blocking)
-        print(bottle)
-        try:
-            bb_coords = [float(x) for x in bottle.get(0).toString().split()]    # Maybe find a simplier way to do this?
-            #print("[DEBUG MODE]")
-            #bb_coords = [133.0, 117.0, 164.0, 145.0]
-        except AttributeError:
-            print("[WARNING] No objects identified in the field of view")
-            return None
-        centroid = (int((bb_coords[0] + bb_coords[2]) / 2), int((bb_coords[1] + bb_coords[3]) / 2))
-        print("[DEBUG] Centroid detected: " + str(centroid))
-        if display:
-            img_array, yarp_image = self.initialize_yarp_image()
-            self.eye_port.read(yarp_image)
-            frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-            cv2.circle(frame, (centroid[0], centroid[1]), 1, (255, 255, 255), 5)
-            cv2.imshow("Centroid location", frame)
-            cv2.waitKey(0)
-        return centroid
+        time.sleep(1)       # Wait for vision to focus
+        yarp.Network.connect(LBP_BOXES, BOXES_INPUT)
+        #if yarp.Network.isConnected(LBP_BOXES, BOXES_INPUT):
+        #    print("Connection ok!")
+        trials = 0
+        while True:
+            time.sleep(1)
+            btl = self.lbp_boxes_port.read(False)     # Fetches data from lbpExtract (True = blocking)
+            if btl is None:
+                print("[WARNING] No objects identified in the field of view")
+                trials += 1
+                if trials >= 10:
+                    print("[WARNING] Object search failed")
+                    return None
+            else:
+                bb_coords = [float(x) for x in btl.get(0).toString().split()]
+                centroid = (int((bb_coords[0] + bb_coords[2]) / 2), int((bb_coords[1] + bb_coords[3]) / 2))
+                print("[DEBUG] Centroid detected: " + str(centroid))
+                if display:
+                    img_array, yarp_image = self.initialize_yarp_image()
+                    self.eye_port.read(yarp_image)
+                    frame = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+                    cv2.circle(frame, (centroid[0], centroid[1]), 1, (255, 255, 255), 5)
+                    cv2.imshow("Centroid location", frame)
+                    cv2.waitKey(0)
+                return centroid
 
     # Looks at the scene, counts red and non-red object and calculates the enclosing bounding box for the whole set.
     # Returns a dict with shape, red count and non-red count.

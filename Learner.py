@@ -28,7 +28,8 @@ import time
 
 
 class Learner:
-    dimensions = 2              # Currently working with 2D skeletons
+    DIMENSIONS = 2              # Currently working with 2D skeletons
+    PCA_DIMENSIONS = 2           # Dimensionality reduction target dimensions
 
     def __init__(self, debug=False, persist=False):
         self.skeletons = []     # Observed skeletons
@@ -138,7 +139,7 @@ class Learner:
 
     # Debug mode for skeleton acquisition: input from file rather than from robot eyes
     # Assumes each goal is contained in a separated subdir names as the goal itself
-    def offline_learning(self, path="/home/samuele/Research/datasets/CAD-60/variations/", volume=5, savedir="objects/cad60/"):
+    def offline_learning(self, path="/home/samuele/Research/datasets/CAD-60/variations/", volume=20, savedir="objects/cad60/"):
         tic = time.time()
         i = 0
         for folder in os.listdir(path):
@@ -183,7 +184,7 @@ class Learner:
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
         # Creates the dataset array
-        dataset = np.zeros(shape=(1, 10*Learner.dimensions))
+        dataset = np.zeros(shape=(1, 10*Learner.DIMENSIONS))
         for skeleton in self.skeletons:
             # skeleton.display()
             dataset = np.vstack((dataset, skeleton.as_feature()))
@@ -193,13 +194,13 @@ class Learner:
     # Performs dimensionality reduction from 20-D to 2-D through PCA
     def do_pca(self):
         # PCA to reduce dimensionality to 2D
-        self.pca = PCA(n_components=2).fit(self.dataset)
+        self.pca = PCA(n_components=Learner.PCA_DIMENSIONS).fit(self.dataset)
         self.dataset2d = self.pca.transform(self.dataset).tolist()
 
     # Performs X-Means clustering on the provided dataset
     def generate_clusters(self):
         # initial centers with K-Means++ method
-        initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), 2).initialize()
+        initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
         # create object of X-Means algorithm that uses CCORE for processing
         # Default tolerance: 0.025
         xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=20, tolerance=0.025,

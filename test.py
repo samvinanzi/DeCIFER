@@ -77,9 +77,33 @@ def load_test_skeletons():
 #cog.lowlevel.train.skeletons[50].plot(dimensions=3)
 #cog.lowlevel.train.skeletons[70].plot(dimensions=3)
 
+def output():
+    import yarp
 
-#centroid = icub.observe_for_centroids(False)
-#world_coordinates = icub.request_3d_points([list(centroid)])
+    yp = yarp.Network()
+    yp.init()
+
+    port_in = yarp.BufferedPortBottle()
+    port_in.open("/reader")
+    if yp.connect("/lbpExtract/blobs:o", "/reader"):
+        print("Connected")
+    while True:
+        time.sleep(1)
+        btl = port_in.read(False)
+        print(btl)
+    #print("Disconnected")
+    #port_in.close()
+
+#output()
+
+
+#icub.action_home()
+#icub.action_look((-1.0, -0.5, -0.5))
+#centroid = icub.observe_for_centroid(display=True)
+centroid = (160.8, 194.5)
+
+world_coordinates = icub.request_3d_points([list(centroid)])
+print(world_coordinates)
 #icub.take(world_coordinates[0])
 
 #img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0001.jpg")
@@ -170,9 +194,9 @@ log.print()
 #icub.observe_for_centroid(display=True)
 #icub.cleanup()
 
-cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
-cog.train(reload=False)
-cog.lowlevel.train.summarize_training()
+#cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+#cog.train(reload=False)
+#cog.lowlevel.train.summarize_training()
 
 
 pass
