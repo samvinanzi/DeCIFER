@@ -300,7 +300,7 @@ class Learner:
             }
             for skeleton_id in cluster.skeleton_ids:
                 orientations[self.skeletons[skeleton_id].orientation_reach()] += 1
-            output[cluster.id] = max(orientations)
+            output[cluster.id] = max(orientations, key=orientations.get)    # Gets the key with highest value
         return output
 
     # Updates the knowledge base with a new goal
@@ -467,4 +467,4 @@ class Learner:
     def summarize_training(self):
         self.training_result()  # Clusters and intentions
         self.show_clustering()      # Graphical visualization of the clusters
-        #self.plot_goal()            # Goals decompositions
+        self.plot_goal()            # Goals decompositions

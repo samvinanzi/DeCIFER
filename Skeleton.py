@@ -200,7 +200,7 @@ class Skeleton:
         return kps
 
     # Analyzes the keypoints to determine the orientation of the person
-    def orientation_reach(self, factor=2.0):
+    def orientation_reach(self, factor=1.5):
         # Uses the 4 arms keypoints, if they are valid
         keypoints = ['RWrist', 'LWrist', 'RElbow', 'LElbow']
         arms_points = {}

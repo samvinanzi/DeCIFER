@@ -31,6 +31,9 @@ from iCub import icub
 import pickle
 from belief.bayesianNetwork import BeliefNetwork
 from Logger import Logger
+from dev.robot_selector import get_robot
+#from dev.icub import iCub
+#from dev.sawyer import Sawyer
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
@@ -46,6 +49,8 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
+#robot = get_robot(iCub)
+
 # Load the test skeletons
 def load_test_skeletons():
     dict = {}
@@ -58,24 +63,6 @@ def load_test_skeletons():
         dict[filename] = skeleton
         lst.append(skeleton)
     return dict, lst
-
-
-#cog = CognitiveArchitecture(debug=True)
-#cog.train(reload=True)
-#cog.lowlevel.train.do_pca()
-#cog.lowlevel.train.clusters = []
-#cog.lowlevel.train.intentions = []
-#cog.lowlevel.train.generate_clusters()
-#cog.lowlevel.train.generate_intentions()
-#cog.lowlevel.train.show_clustering()
-#for skeleton in cog.lowlevel.train.skeletons:
-#    skeleton.check_skeleton_consistency()
-#cog.lowlevel.train.plot_goal()
-#cog.lowlevel.train.show_clustering(just_dots=False)
-#cog.lowlevel.train.skeletons[10].plot(dimensions=3)
-#cog.lowlevel.train.skeletons[30].plot(dimensions=3)
-#cog.lowlevel.train.skeletons[50].plot(dimensions=3)
-#cog.lowlevel.train.skeletons[70].plot(dimensions=3)
 
 def output():
     import yarp
@@ -94,17 +81,40 @@ def output():
     #print("Disconnected")
     #port_in.close()
 
-#output()
+
+def cv2test(path="/home/samuele/blocks1_resized.jpg"):
+    ## Read
+    img = cv2.imread(path)
+    img = cv2.GaussianBlur(img,(5,5),0)
+
+    ## convert to hsv
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    ## mask of green (36,25,25) ~ (86, 255,255)
+    # mask = cv2.inRange(hsv, (36, 25, 25), (86, 255,255))
+    mask = cv2.inRange(hsv, (36, 25, 25), (85, 255, 255))
+    #cv2.equalizeHist(mask, mask)
+
+    ## slice the green
+    imask = mask > 0
+    green = np.zeros_like(img, np.uint8)
+    green[imask] = img[imask]
+
+    kernel = np.ones((5, 5), np.uint8)
+    dilation = cv2.dilate(green, kernel, iterations=3)
+    erosion = cv2.erode(dilation, kernel, iterations=3)
 
 
-#icub.action_home()
-#icub.action_look((-1.0, -0.5, -0.5))
-#centroid = icub.observe_for_centroid(display=True)
-centroid = (160.8, 194.5)
+    edged = cv2.Canny(erosion, 150, 255)
+    #edged = cv2.Sobel()
 
-world_coordinates = icub.request_3d_points([list(centroid)])
-print(world_coordinates)
-#icub.take(world_coordinates[0])
+    cont = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    ## show
+    cv2.imshow("im", cont)
+
+    cv2.waitKey(0)
+
 
 #img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0001.jpg")
 #img = cv2.imread("/home/samuele/Research/models/fullbody.jpg")
@@ -126,79 +136,14 @@ print(world_coordinates)
 #rel = bbn.get_reliability()
 #print("REL: " + str(rel))
 
-#game = BlockBuildingGame()
-#icub.action_look(game.coordinates["left"])
-#for i in range(0, 3):
-#    print("Pass " + str(i))
-#    n = icub.count_objects()
-#    print(n)
-#    icub.say(str(n))
-#    time.sleep(3)
 
-
-#icub.action_home()
-#icub.action_look((-1.0, -0.5, -0.5))
-#icub.say("3, 2, 1...")
-#icub.say("Cheese!")
-#skeleton = icub.look_for_skeleton(icub.initialize_yarp_image(), 0)
-#skeleton.plot()
-#skeleton.plot(dimensions=3)
-#pickle.dump(skeleton, open("objects/test/skeleton/" + "initial.p", "wb"))
-
-
-#skeleton_dict, skeleton_list = load_test_skeletons()
-#for name, skeleton in skeleton_dict.items():
-#    print(name)
-#    skeleton.plot(dimensions=3)
-#skeleton_dict["rightstop"].plot(dimensions=3)
-
-#learner = Learner()
-# I create manually skeletons, goals and offsets
-#goal_list = ["bothwave", "rightstop", "initial", "leftstop", "leftplace", "rightplace"]
-#offset_list = [0, 1, 2, 3, 4, 5]
-# Set
-#learner.skeletons = skeleton_list
-#learner.goal_labels = goal_list
-#learner.offsets = offset_list
-# Do stuff
-#learner.generate_dataset()
-#learner.do_pca()
-#learner.generate_clusters()
-#learner.generate_intentions()
-#learner.show_clustering()
-
-'''
-LOGGER TESTING
-log = Logger()
-log.new_trial()
-log.update_latest_time()
-log.update_latest_time()
-time.sleep(2)
-log.update_latest_time()
-log.update_latest_goal("jumping")
-log.new_trial()
-time.sleep(1)
-log.update_latest_time()
-log.update_latest_goal("jack")
-log.print()
-'''
-
-
-#bb = BlockBuildingGame(debug=True)
-#bb.training_phase()
-#bb.reload_training()
-#bb.playing_phase()
-#bb.end()
-
-
-#icub.observe_for_centroid(display=True)
-#icub.cleanup()
-
-#cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
-#cog.train(reload=False)
-#cog.lowlevel.train.summarize_training()
-
-
-pass
-
+# Complete game
+bb = BlockBuildingGame(debug=True)
+reload = False
+if not reload:
+    bb.training_phase()
+else:
+    bb.reload_training()
+bb.playing_phase(point=True)
+bb.end()
 

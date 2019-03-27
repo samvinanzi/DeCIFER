@@ -71,6 +71,12 @@ class Robot:
         with self.microphone as source:
             self.recognizer.adjust_for_ambient_noise(source)  # we only need to calibrate once before we start listening
 
+        # For development purposes only
+        # Ordered list of vocal responses to the robot's questions
+        self.command_list = ["wall", "yes", "tower", "yes", "castle", "yes", "stable", "no", "yes", "yes", "yes", "no"]
+        self.command_list.reverse()
+        self.AUTORESPONDER_ENABLED = True
+
     # Text to Speech
     def say(self, phrase):
         self.tts.say(phrase)
@@ -112,7 +118,11 @@ class Robot:
 
     # Takes an object
     def action_take(self, coordinates):
-        return self.are_request("take", coordinates, "above")
+        return self.are_request("take", coordinates, "side")
+
+    # Points to an object
+    def action_point(self, coordinates):
+        return self.are_request("point", coordinates)
 
     # Gives an object
     def action_give(self):
@@ -184,9 +194,8 @@ class Robot:
     # Returns a tuple containing the centroid of one of the objects in the field of view. Optionally, displays it.
     def observe_for_centroid(self, display=False):
         time.sleep(1)       # Wait for vision to focus
-        yarp.Network.connect(LBP_BOXES, BOXES_INPUT)
-        #if yarp.Network.isConnected(LBP_BOXES, BOXES_INPUT):
-        #    print("Connection ok!")
+        if yarp.Network.isConnected(LBP_BOXES, BOXES_INPUT):
+            print("Connection ok!")
         trials = 0
         while True:
             time.sleep(1)
@@ -258,6 +267,7 @@ class Robot:
                 construction.shape = Shape.VERTICAL_RECT
         return construction
 
+    # TODO deprecated, change to blue / green
     # Inspect an object's color and tests whever it is red.
     def is_object_red(self, boundingbox, percentage_threshold=70.0):
         # Retrieve and HSV image from the camera
@@ -378,7 +388,12 @@ class Robot:
 
     # Only for debugging purposes
     def wait_and_listen_dummy(self):
-        response = input("Digit the word you would pronounce: ")
+        if self.AUTORESPONDER_ENABLED:
+            time.sleep(2)
+            response = self.command_list.pop()
+            print("[DEBUG] Autoresponse: " + response)
+        else:
+            response = input("Digit the word you would pronounce: ")
         return response
 
     # Remote microphone service (to use on iCub with no microphones onboard)
