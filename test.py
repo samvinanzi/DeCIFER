@@ -23,17 +23,15 @@ import pyaudio
 from queue import Queue
 from asyncio import QueueEmpty
 import pyttsx3
-from Robot import Robot
+#from Robot import Robot
 from Skeleton import NoHumansFoundException
 from BlockBuildingGame import BlockBuildingGame
-#from BlockBuildingGame2 import BlockBuildingGame
-from iCub import icub
+from robots.robot_selector import robot
 import pickle
 from belief.bayesianNetwork import BeliefNetwork
 from Logger import Logger
-from dev.robot_selector import get_robot
-#from dev.icub import iCub
-#from dev.sawyer import Sawyer
+from robots.robot_selector import get_robot
+
 
 # -------------------------------------------------------------------------------------------------------------------- #
 
@@ -138,12 +136,18 @@ def cv2test(path="/home/samuele/blocks1_resized.jpg"):
 
 
 # Complete game
+time.sleep(2)
 bb = BlockBuildingGame(debug=True)
-reload = False
+reload = True
 if not reload:
     bb.training_phase()
 else:
     bb.reload_training()
+# Cluster editing for the video
+#clusters = bb.cognition.lowlevel.train.clusters
+#bb.cognition.lowlevel.train.clusters[1].id = 2
+#bb.cognition.lowlevel.train.clusters[2].id = 1
+#bb.cognition.lowlevel.train.show_clustering()
 bb.playing_phase(point=True)
 bb.end()
 

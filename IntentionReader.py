@@ -9,7 +9,7 @@ from Learner import Learner
 from Intention import Intention
 from Skeleton import Skeleton, NoHumansFoundException
 import numpy as np
-from iCub import icub
+from robots.robot_selector import robot
 import time
 import subprocess
 import cv2
@@ -35,7 +35,7 @@ class IntentionReader:
     # Observes the scene and reads intentions
     def observe(self, fps=2):
         assert self.env is not None, "Environment must be initialized"
-        image_containers = icub.initialize_yarp_image()
+        image_containers = robot.get_image_containers()
         print("[DEBUG] " + self.__class__.__name__ + " is observing")
         i = 0
         goal_found = False
@@ -44,7 +44,7 @@ class IntentionReader:
         while not goal_found:
             try:
                 # Tries to extract a skeleton
-                skeleton = icub.look_for_skeleton(image_containers, i)
+                skeleton = robot.look_for_skeleton(image_containers, i)
                 self.skeletons.append(skeleton)
                 # Converts that skeleton to a feature array and memorizes it
                 feature = skeleton.as_feature()

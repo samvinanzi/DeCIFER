@@ -21,7 +21,8 @@ import os
 import pickle
 import csv
 import math
-from iCub import icub
+#from iCub import icub
+from robots.robot_selector import robot
 import cv2
 import subprocess
 import time
@@ -114,28 +115,28 @@ class Learner:
         finished = False
         i = 0
         while not finished:
-            icub.say("Please, start demonstrating.")
+            robot.say("Please, start demonstrating.")
             # Learns a single goal
-            skeletons, goal_name = icub.record_goal(i, fps=2, debug=self.debug)
+            skeletons, goal_name = robot.record_goal(i, fps=2, debug=self.debug)
             self.skeletons.extend(skeletons)    # extend instead of append to avoid nesting lists
             self.goal_labels.append(goal_name)
             self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
             i += len(skeletons)
-            icub.say("Do you want to show me another goal?")
+            robot.say("Do you want to show me another goal?")
             while True:
                 if not self.debug:
-                    response = icub.wait_and_listen()
+                    response = robot.wait_and_listen()
                 else:
-                    response = icub.wait_and_listen_dummy()
-                if icub.recognize_commands(response, listenFor="NO"):
-                    icub.say("All right, thanks for showing me.")
+                    response = robot.wait_and_listen_dummy()
+                if robot.recognize_commands(response, listenFor="NO"):
+                    robot.say("All right, thanks for showing me.")
                     finished = True
                     break
-                elif icub.recognize_commands(response, listenFor="YES"):
-                    icub.say("Ok then, let's continue.")
+                elif robot.recognize_commands(response, listenFor="YES"):
+                    robot.say("Ok then, let's continue.")
                     break
                 else:
-                    icub.say("Sorry, I didn't understand. Can you repeat?")
+                    robot.say("Sorry, I didn't understand. Can you repeat?")
 
     # Debug mode for skeleton acquisition: input from file rather than from robot eyes
     # Assumes each goal is contained in a separated subdir names as the goal itself
@@ -310,7 +311,7 @@ class Learner:
         last_id = max([skeleton.id for skeleton in self.skeletons])
         # Learn one new goal
         print("[DEBUG] Acquiring a new goal...")
-        new_skeletons, new_goal = icub.record_goal(last_id+1, fps=2, debug=self.debug)
+        new_skeletons, new_goal = robot.record_goal(last_id+1, fps=2, debug=self.debug)
         # Check to see if the goal is a new one or a replacement
         if new_goal in self.goal_labels:
             # Get the id of the old goal which is being replacing

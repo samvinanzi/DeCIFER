@@ -7,7 +7,8 @@ Initializes the low- and high-level modules and connects them to each other.
 from LowLevel import LowLevel
 from HighLevel import HighLevel
 from TransitionQueue import TransitionQueue
-from iCub import icub
+#from iCub import icub
+from robots.robot_selector import robot
 from Logger import Logger
 import time
 
@@ -57,7 +58,7 @@ class CognitiveArchitecture:
     def terminate(self):
         self.highlevel.stop()
         self.print_log()
-        icub.cleanup()
+        robot.cleanup()
 
     # DEBUG MODE -- Inserting manual observations into the transition queue for offline testing
     def debug_transition_input(self, observations):

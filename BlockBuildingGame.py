@@ -7,8 +7,8 @@ Note (for myself): the cognitive system is generic and can learn whichever goals
 """
 
 from CognitiveArchitecture import CognitiveArchitecture
-from iCub import icub
 import time
+from robots.robot_selector import robot
 
 
 class BlockBuildingGame:
@@ -26,20 +26,22 @@ class BlockBuildingGame:
             "stable": []
         }
         self.debug = debug
-        icub.action_home()
-        icub.action_look(self.coordinates["center"])
+        robot.action_home()
+        robot.action_look(self.coordinates["center"])
+        robot.say("Welcome to the intention reading experiment. We will start very soon.")
+        time.sleep(2)
 
     # Main execution of the experiment
     def execute(self):
         if self.training_phase():
             self.playing_phase()
         else:
-            icub.say("I'm sorry, something went wrong. Shall we try again?")
+            robot.say("I'm sorry, something went wrong. Shall we try again?")
         self.end()
 
     # Terminates the experiment
     def end(self):
-        icub.say("Thank you for playing!")
+        robot.say("Thank you for playing!")
         self.cognition.terminate()      # Stops running threads, closes YARP ports, prints the recorded data log
 
     # The robot learns or remembers the directions of movement (i.e. what side the blocks are collected from)
@@ -53,7 +55,7 @@ class BlockBuildingGame:
 
     # Trains the robot on the current rules of the game
     def training_phase(self):
-        icub.say("Show me the rules of the game, I will learn them so that we can play together.")
+        robot.say("Show me the rules of the game, I will learn them so that we can play together.")
         self.cognition.train()
         # Checks that all the four goals have been learned
         for intention in self.cognition.lowlevel.train.intentions:
@@ -67,35 +69,35 @@ class BlockBuildingGame:
 
     # Reloads a previous training, to be able to play immediately
     def reload_training(self):
-        icub.say("Let me remember the rules of the game...")
+        robot.say("Let me remember the rules of the game...")
         self.cognition.train(reload=True)
         self.set_orientations()
-        if icub.AUTORESPONDER_ENABLED:
-            icub.command_list = icub.command_list[0:-8]     # Truncates the automated response sequence
-        icub.say("Ok, done!")
+        if robot.AUTORESPONDER_ENABLED:
+            robot.command_list = robot.command_list[0:-8]     # Truncates the automated response sequence
+        robot.say("Ok, done!")
 
     # Robot and human partner will play the game cooperatively
     def playing_phase(self, point=False):
         turn_number = 1
-        icub.say("Time to play! Feel free to start.")
+        robot.say("Time to play! Feel free to start.")
         while True:
             goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
             # Acting, based on the intention read
             if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
                 continue
-            icub.say("We are building a " + goal)
+            robot.say("We are building a " + goal)
             # If not unknown, perform an action
             self.collaborate(goal, point)
             # Asks the partner if to continue the game (only if task is not unknown)
-            icub.say("Do you wish to continue with turn number " + str(turn_number+1) + "?")
+            robot.say("Do you wish to continue with turn number " + str(turn_number+1) + "?")
             if self.debug:
-                response = icub.wait_and_listen_dummy()
+                response = robot.wait_and_listen_dummy()
             else:
-                response = icub.wait_and_listen()
+                response = robot.wait_and_listen()
             if response != "yes":
                 break
             else:
-                icub.say("Ok, go!")
+                robot.say("Ok, go!")
                 turn_number += 1
 
     # Determines where to obtain the blocks from
@@ -115,37 +117,37 @@ class BlockBuildingGame:
             else:
                 self.collect_single_block(direction)
             time.sleep(1)
-        icub.action_look(self.coordinates["center"])    # Look back at the user
+        robot.action_look(self.coordinates["center"])    # Look back at the user
 
     # Looks to one side, seeks for a cube, picks it up and gives it to the human partner
     def collect_single_block(self, direction):
-        icub.action_look(self.coordinates[direction])
+        robot.action_look(self.coordinates[direction])
         while True:
-            object_centroid = icub.observe_for_centroid()
+            object_centroid = robot.observe_for_centroid()
             if object_centroid is None:
-                icub.say("I can't see any objects...")
+                robot.say("I can't see any objects...")
                 time.sleep(2)
             else:
                 break
-        object_coordinates = icub.get_object_coordinates(list(object_centroid))
+        object_coordinates = robot.get_object_coordinates(list(object_centroid))
         # Set manually the Z coordinate
         object_coordinates[2] = -0.02
         while True:
-            if icub.action_take(object_coordinates):
-                icub.action_give()
+            if robot.action_take(object_coordinates):
+                robot.action_give()
                 time.sleep(5)
-                while icub.is_holding():       # Busy waiting until the hand is freed
+                while robot.is_holding():       # Busy waiting until the hand is freed
                     time.sleep(1)
                 break
             else:
-                icub.say("Sorry, I wasn't able to grasp it. Let me try again.")
-        icub.action_home()
+                robot.say("Sorry, I wasn't able to grasp it. Let me try again.")
+        robot.action_home()
 
     def point_single_block(self, direction):
         point_coordinates = {
             "left": (-0.35, -0.25, -0.02),
             "right": (-0.35, 0.3, 0.03)
         }
-        icub.action_look(self.coordinates[direction])
-        icub.action_point(point_coordinates[direction])
-        icub.action_home()
+        robot.action_look(self.coordinates[direction])
+        robot.action_point(point_coordinates[direction])
+        robot.action_home()
