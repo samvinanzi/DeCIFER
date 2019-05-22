@@ -34,5 +34,5 @@ class InvalidRobotException(Exception):
 
 # Change these lines to switch robot:
 
-robot = get_robot('iCub')
-#robot = get_robot('Sawyer')
+#robot = get_robot('iCub')
+robot = get_robot('Sawyer')

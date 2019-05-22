@@ -6,31 +6,12 @@ Sandbox script
 
 import cv2
 import time
-from pathlib import Path
 import os
-from Learner import Learner
-from Skeleton import Skeleton
-from Keypoint import Keypoint
-from IntentionReader import IntentionReader
-from HighLevel import HighLevel
-from LowLevel import LowLevel
-from CognitiveArchitecture import CognitiveArchitecture
-import yarp
 import numpy as np
-import matplotlib.pyplot as plt
-import speech_recognition as sr
-import pyaudio
-from queue import Queue
-from asyncio import QueueEmpty
-import pyttsx3
 #from Robot import Robot
-from Skeleton import NoHumansFoundException
-from BlockBuildingGame import BlockBuildingGame
-from robots.robot_selector import robot
 import pickle
-from belief.bayesianNetwork import BeliefNetwork
-from Logger import Logger
-from robots.robot_selector import get_robot
+from messages import Request, Response
+from robots.robot_selector import robot
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -134,7 +115,7 @@ def cv2test(path="/home/samuele/blocks1_resized.jpg"):
 #rel = bbn.get_reliability()
 #print("REL: " + str(rel))
 
-
+"""
 # Complete game
 time.sleep(2)
 bb = BlockBuildingGame(debug=True)
@@ -150,4 +131,11 @@ else:
 #bb.cognition.lowlevel.train.show_clustering()
 bb.playing_phase(point=True)
 bb.end()
+"""
+
+
+request = Request("sake", [1.0, 2.0, 3.0])
+print(request)
+response = robot.send_proxy_request(request)
+print(response)
 
