@@ -39,3 +39,7 @@ class Response(object):
             message += str(self.values)
         return message
 
+
+# Custom exception
+class RemoteActionFailedException(Exception):
+    pass

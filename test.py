@@ -133,9 +133,11 @@ bb.playing_phase(point=True)
 bb.end()
 """
 
+#request = Request("sake", [1.0, 2.0, 3.0])
+#print(request)
+#response = robot.send_proxy_request(request)
+#print(response)
 
-request = Request("sake", [1.0, 2.0, 3.0])
-print(request)
-response = robot.send_proxy_request(request)
+
+response = robot.action_take([12.8, 0.2, 1.4])
 print(response)
-
