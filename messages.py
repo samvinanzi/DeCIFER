@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 
 Socket messages exchanged with remote locations (e.g. Sawyer to/from SawyerProxy on a ROS machine).
