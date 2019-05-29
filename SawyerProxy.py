@@ -29,10 +29,7 @@ HEAD_CAM = "/io/internal_camera/head_camera/image_rect"
 class SawyerProxy:
 	def __init__(self):
 		self.close_request = False
-		self.latest_frame = {
-			'right_hand_camera': None,
-			'head_camera': None
-		}
+		self.latest_frame = None
 		rospy.init_node('SawyerProxy')
 		# Mechanical parts
 		self.limb = intera_interface.Limb('right')
@@ -73,7 +70,8 @@ class SawyerProxy:
 				# Performs an operation
 				response = self.route_request(request)      # Routing function
 				# Sends back the data
-				data = pickle.dumps(response)
+				data = pickle.dumps(response, protocol=0)
+				#print("DATA: " + str(data))
 				conn.send(data)
 				elapsed = t.time() - start_time
 				print('| {0:^{1}} |'.format(response, format_width))
@@ -99,9 +97,9 @@ class SawyerProxy:
 	# Manages the request, based on the command tag
 	def route_request(self, request):
 		if request.command == "TAKE":
-			response = self.take()
+			response = self.take(request.parameters)
 		elif request.command == "POINT":
-			response = self.point()
+			response = self.point(request.parameters)
 		elif request.command == "GIVE":
 			response = self.give()
 		elif request.command == "HOME":
@@ -121,11 +119,11 @@ class SawyerProxy:
 			response = Response(False, "Invalid command code")
 		return response
 
-	def take(self):
+	def take(self, coordinates):
 		#self.limb.move_to_joint_positions(cal_pos)
 		return Response(True, None)
 
-	def point(self):
+	def point(self, coordinates):
 		# todo move arm
 		return Response(True, None)
 
@@ -150,26 +148,26 @@ class SawyerProxy:
 			camera_name = 'right_hand_camera'
 		else:
 			camera_name = 'head_camera'
-		self.cameras.set_callback(camera_name, self.grab_single_frame, queue_size=1, callback_args=(camera_name))
+		self.cameras.set_callback(camera_name, self.grab_single_frame, queue_size=1000)
 		self.cameras.start_streaming(camera_name)
 		# Busy waiting until one image is captured and stored in memory
-		# First callback will deactivate streaming, hence signalling the availability
-		while self.cameras.is_camera_streaming(camera_name):
+		while self.latest_frame is None:
 			pass
-		return Response(True, self.latest_frame[camera_name])
+		self.cameras.stop_streaming(camera_name)
+		frame = self.latest_frame
+		#frame = cv2.imencode('.jpg', self.latest_frame)[1].tostring()
+		self.latest_frame = None			# Reset
+		#cv2.imshow(camera_name, frame)
+		#cv2.waitKey(0)
+		return Response(True, frame)
 		
-	# Camera callback. It captures one single frame before stopping the stream and stores it
-	def grab_single_frame(self, img_data, camera_name):
-		bridge = CvBridge()
+	# Camera callback. It captures a frame from the camera stream and stores it
+	def grab_single_frame(self, img_data):
 		try:
-			cv_image = bridge.imgmsg_to_cv2(img_data, "bgr8")
+			self.latest_frame = CvBridge().imgmsg_to_cv2(img_data, desired_encoding='bgr8')
 		except CvBridgeError, err:
 			rospy.logerr(err)
 			return
-		self.latest_frame[camera_name] = cv_image
-		self.cameras.stop_streaming(camera_name)
-		cv2.imshow(camera_name, cv_image)
-		cv2.waitKey(0)
 
 	def close(self):
 		self.close_request = True
