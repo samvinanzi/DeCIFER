@@ -7,7 +7,7 @@ They are explicitly declared as inheritants of Object for Python2 retrocompatibi
 
 """
 
-from numpy import ndarray
+import numpy
 
 # String, list
 class Request(object):
@@ -39,8 +39,8 @@ class Response(object):
 	def __str__(self):
 		message = "Response: " + str(self.status) + " "
 		if self.values:
-			if isinstance(self.values, list) and isinstance(self.values[0], ndarray):	
-				message += "image"		# Prevents from printing the whole image matrix
+			if len(self.values[0]) > 30:
+				message += "<image>"
 			else:
 				message += str(self.values)
 		return message

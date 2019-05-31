@@ -8,7 +8,6 @@ connection for incoming requests.
 '''
 
 import socket
-import pickle
 from messages import Request, Response
 import cv2
 from datetime import datetime
@@ -20,6 +19,12 @@ import rospy
 import intera_interface
 from sensor_msgs.msg import Image
 import message_filters
+
+try:
+	import cPickle as pickle
+except ImportError:
+	import pickle
+pickle.HIGHEST_PROTOCOL = 2
 
 HOST = '10.0.0.90'
 PORT = 65432
@@ -67,12 +72,16 @@ class SawyerProxy:
 				_, time = self.get_datetime()
 				print('| {0:^{1}} |'.format('Time: ' + time, format_width))
 				print('| {0:^{1}} |'.format(request, format_width))
+				camera_op = "CAMERA" in request.command
 				# Performs an operation
 				response = self.route_request(request)      # Routing function
 				# Sends back the data
-				data = pickle.dumps(response, protocol=0)
-				#print("DATA: " + str(data))
-				conn.send(data)
+				data = pickle.dumps(response, protocol=2)
+				if camera_op:
+					conn.sendall(data)
+				else:
+					conn.send(data)
+				conn.shutdown(socket.SHUT_WR)
 				elapsed = t.time() - start_time
 				print('| {0:^{1}} |'.format(response, format_width))
 				print('| {0:^{1}} |'.format("Elapsed: " + str(round(elapsed,2)) + "s", format_width))
@@ -155,10 +164,7 @@ class SawyerProxy:
 			pass
 		self.cameras.stop_streaming(camera_name)
 		frame = self.latest_frame
-		#frame = cv2.imencode('.jpg', self.latest_frame)[1].tostring()
 		self.latest_frame = None			# Reset
-		#cv2.imshow(camera_name, frame)
-		#cv2.waitKey(0)
 		return Response(True, frame)
 		
 	# Camera callback. It captures a frame from the camera stream and stores it
