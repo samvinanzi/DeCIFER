@@ -139,5 +139,14 @@ bb.end()
 #print(response)
 
 
-response = robot.action_take([12.8, 0.2, 1.4])
-print(response)
+#robot.action_look([12.8, 0.2, 1.4])
+#time.sleep(1)
+#robot.action_take([12.8, 0.2, 1.4])
+#time.sleep(1)
+#robot.action_home()
+#robot.action_close()
+
+#robot.action_home()
+time.sleep(1)
+skeleton = robot.look_for_skeleton(None, 0)
+skeleton.display_fast()
