@@ -56,12 +56,14 @@ class SawyerProxy:
 			quit(-1)
 		print("Listening...\n")
 		s.listen(5)
-		# Accepts the connection
-		conn, addr = s.accept()
-		date, _ = self.get_datetime()
-		print('+-' + '-' * format_width + '-+')
-		print('| {0:^{1}} |'.format('Connected by ' + str(addr) + ' on ' + date, format_width))  
 		while not self.close_request:
+			# Accepts the connection
+			conn, addr = s.accept()
+			_, time = self.get_datetime()
+			print('+-' + '-' * format_width + '-+')
+			#print('| {0:^{1}} |'.format('Connected by ' + str(addr) + ' on ' + time, format_width))  
+			print('| {0:^{1}} |'.format('Connection from ' + str(addr[0]) + ":" + str(addr[1]) + 
+				' at ' + time, format_width))  
 			try:
 				start_time = t.time()
 				# Reads the request
@@ -69,8 +71,8 @@ class SawyerProxy:
 				request = pickle.loads(data)
 				assert isinstance(request, Request), "Received message was of an unsupported type."
 				print('+-' + '-' * format_width + '-+')
-				_, time = self.get_datetime()
-				print('| {0:^{1}} |'.format('Time: ' + time, format_width))
+				#_, time = self.get_datetime()
+				#print('| {0:^{1}} |'.format('Time: ' + time, format_width))
 				print('| {0:^{1}} |'.format(request, format_width))
 				camera_op = "CAMERA" in request.command
 				# Performs an operation
@@ -81,17 +83,18 @@ class SawyerProxy:
 					conn.sendall(data)
 				else:
 					conn.send(data)
-				conn.shutdown(socket.SHUT_WR)
+				#conn.shutdown(socket.SHUT_WR)
 				elapsed = t.time() - start_time
 				print('| {0:^{1}} |'.format(response, format_width))
-				print('| {0:^{1}} |'.format("Elapsed: " + str(round(elapsed,2)) + "s", format_width))
+				print('| {0:^{1}} |'.format("Time elapsed: " + str(round(elapsed,2)) + "s", format_width))
 				print('+-' + '-' * format_width + '-+')
+				# Closes the connection
+				#print('| {0:^{1}} |'.format('Closing connection', format_width))                
+				#print('+-' + '-' * format_width + '-+')
+				conn.close()
 			except KeyboardInterrupt:
 				break
-		# Closes the connection
-		print('| {0:^{1}} |'.format('Closing connection', format_width))                
-		print('+-' + '-' * format_width + '-+')
-		conn.close()
+		# Terminate the server process
 		s.shutdown(socket.SHUT_RDWR)
 		s.close()
 		print('\nTerminated')
@@ -121,6 +124,8 @@ class SawyerProxy:
 			response = self.camera()
 		elif request.command == "CAMERA_GRIPPER":
 			response = self.camera(gripper=True)
+		elif request.command == "PING":
+			response = self.ping()
 		elif request.command == "CLOSE":
 			response = self.close()
 		else:
@@ -141,7 +146,18 @@ class SawyerProxy:
 		return Response(True, None)
 
 	def home(self):
-		self.limb.move_to_neutral()
+		self.head.set_pan(-1.41703617573)	# Looking forwards
+		home_position = {
+			'right_j0': 1.39565917969,
+			'right_j1': 1.06604003906,
+			'right_j2': -0.06905078125,
+			'right_j3': -2.76589746094,
+			'right_j4': -1.19899511719,
+			'right_j5': 0.0740322265625,
+			'right_j6': 3.17996289063,
+			'right_gripper': 0.041667 
+		}
+		self.limb.move_to_joint_positions(home_position)
 		return Response(True, None)
 
 	def look(self, coordinates):
@@ -174,6 +190,9 @@ class SawyerProxy:
 		except CvBridgeError, err:
 			rospy.logerr(err)
 			return
+			
+	def ping():
+		return Response(True, None) 
 
 	def close(self):
 		self.close_request = True
