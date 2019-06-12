@@ -24,18 +24,14 @@ pickle.HIGHEST_PROTOCOL = 2
 class Sawyer(AbstractRobot):
     def __init__(self):
         super().__init__()
-        #self.HOST = 'localhost'
         self.HOST = '10.0.0.90'
         self.PORT = 65432
         self.socket = None
-        while not self.connect_to_proxy():
-            print("[DEBUG] Trying again in 5 seconds...")
-            time.sleep(5)
 
     def connect_to_proxy(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            self.socket.connect((self.HOST, self.PORT))
+            value = self.socket.connect((self.HOST, self.PORT))
             return True
         except ConnectionError:
             print("[ERROR] Cannot contact remote SawyerProxy server! Is it up and running?")
@@ -45,6 +41,8 @@ class Sawyer(AbstractRobot):
     def send_proxy_request(self, request):
         camera_op = "CAMERA" in request.command     # Indicates if a camera image was requested
         data_out = pickle.dumps(request, protocol=2)    # Explicitly requests Python2 protocol
+        while not self.connect_to_proxy():   # Open connection
+            time.sleep(1)       # In case server is offline, continues to try
         self.socket.send(data_out)
         # Now wait for response
         try:
@@ -58,16 +56,21 @@ class Sawyer(AbstractRobot):
                         break
             else:
                 data_in = self.socket.recv(4096)
+            self.connection_close()   # Close the connection
             response = pickle.loads(data_in, encoding='latin1')     # To read a Python2 dump
             assert isinstance(response, Response), "Received message was of an unsupported type."
         except EOFError:
             response = Response(False, "Reception error")
         return response
 
-    def cleanup(self):
-        self.action_close()
+    def connection_close(self):
         self.socket.shutdown(socket.SHUT_WR)
         self.socket.close()
+
+    def cleanup(self):
+        self.action_close()
+        #self.socket.shutdown(socket.SHUT_WR)
+        #self.socket.close()
 
     # NETWORK REQUESTS: sensing and actuation
 
@@ -112,6 +115,9 @@ class Sawyer(AbstractRobot):
 
     def action_drop(self, coordinates):
         self.request_action("drop", coordinates)
+
+    def action_ping(self):
+        self.request_action("ping")
 
     def action_close(self):
         self.request_action("close")
