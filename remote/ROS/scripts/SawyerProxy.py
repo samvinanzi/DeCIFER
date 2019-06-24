@@ -23,6 +23,7 @@ from sensor_msgs.msg import Image
 import message_filters
 from threading import Lock, Event
 import numpy as np
+from posture import Posture, PostureLibrary, PostureException
 
 try:
 	import cPickle as pickle
@@ -36,13 +37,16 @@ GRIPPER_CAM = "/io/internal_camera/right_hand_camera/image_rect"
 HEAD_CAM = "/io/internal_camera/head_camera/image_rect"
 IMG_PATH = "./src/decifer/share/images/"
 
+# The following data structures located here are fine only if there only is a single instance of Sawyer!
 frame_mutex = Lock()
 request_event = Event()		# Frame Request Event
-available_event = Event()		# Frame Available Event
+available_event = Event()	# Frame Available Event
+
+pl = PostureLibrary()
 
 class SawyerProxy:
 	def __init__(self):
-		self.in_home = False
+		self.current_position = "home"
 		self.close_request = False
 		self.latest_frame = None
 		rospy.init_node('SawyerProxy')
@@ -56,6 +60,8 @@ class SawyerProxy:
 		self.cameras.set_callback('right_hand_camera', self.grab_single_frame, queue_size=1000)
 		self.cameras.set_callback('head_camera', self.grab_single_frame, queue_size=1000)
 		self.cameras.start_streaming('head_camera')		# Head camera is the default streaming device
+		# PoseLibrary debug
+		print("PoseLibrary was initialized with " + str(len(pl.postures)) + " postures.")
 		# Work
 		self.listen_and_respond()
 	
@@ -87,8 +93,6 @@ class SawyerProxy:
 				request = pickle.loads(data)
 				assert isinstance(request, Request), "Received message was of an unsupported type."
 				print('+-' + '-' * format_width + '-+')
-				#_, time = self.get_datetime()
-				#print('| {0:^{1}} |'.format('Time: ' + time, format_width))
 				print('| {0:^{1}} |'.format(request, format_width))
 				camera_op = "CAMERA" in request.command
 				# Performs an operation
@@ -105,8 +109,6 @@ class SawyerProxy:
 				print('| {0:^{1}} |'.format("Time elapsed: " + str(round(elapsed,2)) + "s", format_width))
 				print('+-' + '-' * format_width + '-+')
 				# Closes the connection
-				#print('| {0:^{1}} |'.format('Closing connection', format_width))                
-				#print('+-' + '-' * format_width + '-+')
 				conn.close()
 			except KeyboardInterrupt:
 				break
@@ -131,7 +133,7 @@ class SawyerProxy:
 		elif request.command == "GIVE":
 			response = self.give()
 		elif request.command == "MIDPOSE":
-			response = self.mid_pose()
+			response = self.midpose()
 		elif request.command == "HOME":
 			response = self.home()
 		elif request.command == "LOOK":
@@ -162,48 +164,32 @@ class SawyerProxy:
 			camera_name = 'head_camera'
 		# If the current streaming device is not the desired one, it toggles it
 		if not self.cameras.is_camera_streaming(camera_name):
-			print "[M] Starting to stream"
 			self.cameras.start_streaming(camera_name)	# All other streaming devices are forcefully closed
 			t.sleep(1)		# Wait for camera to stabilize
 		# Request a frame
-		print "[M] Requesting a frame"
 		request_event.set()
-		print "[M] Waiting for a frame to be available"
 		available_event.wait()
-		print "[M] A frame seems available. Grabbing mutex"
 		with frame_mutex:
-			print "[M] Getting frame"
 			frame = self.latest_frame
-		print "[M] Out of mutex"
-		print "[M] Clearing availability event"
 		available_event.clear()
 		return Response(True, frame)
 		
 	# Camera callback. It captures a frame from the camera stream and stores it
 	def grab_single_frame(self, img_data):
-		print "[C] I have a frame, do you need it?"
 		if request_event.wait(0.0):
-			print "[C] Yes, preparing to collect it"
 			try:
 				image = CvBridge().imgmsg_to_cv2(img_data, desired_encoding='bgr8')
 			except CvBridgeError, err:
 				rospy.logerr(err)
 			# Resize to optimize transfer
 			image = cv2.resize(image, (800, 600))
-			print "[C] Grabbing mutex"
 			with frame_mutex:
-				print "[C] Saving frame"
 				self.latest_frame = image
-			print "[C] Out of mutex"
-			print "[C] Notifing the availability of a frame"
 			# Clear the request event
 			request_event.clear()
 			available_event.set()
 			# Display the image
 			self.display_temp_image(image)
-		else:
-			print "[C] No, dropping"
-		print("[C] Exiting callback")
 		
 	# Displays some speech text on the display
 	def say(self, message):
@@ -234,79 +220,70 @@ class SawyerProxy:
 		self.display.display_image(path)
 		os.remove(path)
 		
-	# Go to a midway pose that avoids contact with the table
-	def mid_pose(self):
-		position = {
-			'right_gripper': 0.041667,
-			'right_j0': 0.602548828125,
-			'right_j1': 0.645510742188,
-			'right_j2': -2.72328027344,
-			'right_j3': 1.92518847656,
-			'right_j4': -0.163989257813,
-			'right_j5': -0.914041015625,
-			'right_j6': 4.45303320312,
-		}
-		self.limb.move_to_joint_positions(position)
-		#return Response(True, None)
-
-	def take(self, coordinates):
-		self.mid_pose()
-		#self.limb.move_to_joint_positions(cal_pos)
-		self.in_home = False
+	# Moves to a specified position passing by the midpoint, if not already there
+	def perform_action(self, action, pass_by_midpose=True):
+		if self.current_position != action:
+			if pass_by_midpose:
+				self.midpose()
+			try:
+				position, head = pl.get_posture(action)
+			except PostureException:
+				return(False, "Invalid posture requested")
+			self.head.set_pan(head)	
+			self.limb.move_to_joint_positions(position)
+			self.current_position = action
 		return Response(True, None)
+		
+	# Go to a midway pose that avoids contact with the table
+	def midpose(self):
+		position, _ = pl.get_posture('midpose')	# Don't care about head position here
+		self.limb.move_to_joint_positions(position)
+		self.current_position = 'midpose'
+		return Response(True, None)		# Only useful when called directly by remote client
+
+	# Scripted destination
+	def take(self, coordinates):
+		if coordinates == 'left':
+			response = self.perform_action('take_left')
+		else:
+			response = self.perform_action('take_right')
+		t.sleep(1)
+		self.gripper.close()
+		t.sleep(0.5)
+		return response
 
 	def point(self, coordinates):
-		self.mid_pose()
-		# todo move arm
-		self.in_home = False
-		return Response(True, None)
+		if coordinates == 'left':
+			response = self.perform_action('point_left')
+		else:
+			response = self.perform_action('point_right')
+		for i in range(3):
+			self.gripper.close()
+			t.sleep(0.5)
+			self.gripper.open()
+			t.sleep(0.5)
+		return response
 
 	def give(self):
-		self.mid_pose()
-		self.head.set_pan(-0.25)	# Looking forwards
-		home_position = {
-			'right_j0': 0.208775390625,
-			'right_j1': 0.648694335938,
-			'right_j2': -2.18177636719,
-			'right_j3': 2.01313085937,
-			'right_j4': 0.671734375,
-			'right_j5': -1.30488183594,
-			'right_j6': 3.97539257813,
-			'right_gripper': 0.041667 
-		}
-		self.limb.move_to_joint_positions(home_position)
-		self.in_home = False
-		return Response(True, None)
+		# Give is usually executed after Take, so no need to go to midpose
+		response = self.perform_action('give', False)
+		t.sleep(1.5)
+		self.gripper.open()
+		return response
 
 	def home(self):
 		self.whitescreen()
-		if not self.in_home:
-			self.mid_pose()
-			self.head.set_pan(-1.41703617573)	# Looking forwards
-			home_position = {
-				'right_j0': 1.39565917969,
-				'right_j1': 1.06604003906,
-				'right_j2': -0.06905078125,
-				'right_j3': -2.76589746094,
-				'right_j4': -1.19899511719,
-				'right_j5': 0.0740322265625,
-				'right_j6': 3.17996289063,
-				'right_gripper': 0.041667 
-			}
-			self.limb.move_to_joint_positions(home_position)
-			self.in_home = True
-		return Response(True, None)
+		self.gripper.open()
+		return self.perform_action('home')
+
+	def drop(self, coordinates):
+		return self.perform_action('drop')
 
 	def look(self, coordinates):
 		#self.head.set_pan(head_angle, speed=0.3, timeout=0)
 		return Response(True, None)
-
-	def drop(self, coordinates):
-		self.mid_pose()
-		# todo move
-		self.in_home = False
-		return Response(True, None)
 			
+	# Returns the current time, for latency tests
 	def ping(self):
 		return Response(True, t.time())
 		
