@@ -50,6 +50,16 @@ class iCub(AbstractRobot):
         self.are_get_rpc_client.addOutput(ARE_GET_RPC_SERVER)
         self.lbp_boxes_port.open(BOXES_INPUT)               # lbpExtract port and connection to external output port
         yarp.Network.connect(LBP_BOXES, BOXES_INPUT)
+        # For iCub, coordinates are 3D tuples specifying X,Y,Z wrt the robot
+        self.coordinates = {
+            "left": (-1.0, -0.5, -0.5),
+            "right": (-1.0, 0.5, -0.5),
+            "center": (-2.0, 0.0, 0.25),
+        }
+        self.point_coordinates = {
+            "left": (-0.35, -0.25, -0.02),
+            "right": (-0.35, 0.3, 0.03)
+        }
 
     # --- ACTION METHODS --- #
 

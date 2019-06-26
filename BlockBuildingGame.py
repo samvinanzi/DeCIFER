@@ -14,11 +14,7 @@ from robots.robot_selector import robot
 class BlockBuildingGame:
     def __init__(self, debug=False):
         self.cognition = CognitiveArchitecture(debug)
-        self.coordinates = {
-            "left": (-1.0, -0.5, -0.5),
-            "right": (-1.0, 0.5, -0.5),
-            "center": (-2.0, 0.0, 0.25),
-        }
+        self.coordinates = robot.coordinates
         self.goals = {
             "tower": [],
             "wall": [],
@@ -81,13 +77,18 @@ class BlockBuildingGame:
         turn_number = 1
         robot.say("Time to play! Feel free to start.")
         while True:
+            if robot.__class__.__name__ == "Sawyer":
+                robot.action_display("eyes")
             goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
             # Acting, based on the intention read
             if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
                 continue
-            robot.say("We are building a " + goal)
-            # If not unknown, perform an action
-            self.collaborate(goal, point)
+            elif goal == "failure":
+                robot.say("I'm sorry, I cannot understand what you are doing.")
+            else:
+                # If not unknown, perform an action
+                robot.say("We are building a " + goal)
+                self.collaborate(goal, point)
             # Asks the partner if to continue the game (only if task is not unknown)
             robot.say("Do you wish to continue with turn number " + str(turn_number+1) + "?")
             if self.debug:
@@ -97,6 +98,7 @@ class BlockBuildingGame:
             if response != "yes":
                 break
             else:
+                time.sleep(1)
                 robot.say("Ok, go!")
                 turn_number += 1
 
@@ -143,11 +145,9 @@ class BlockBuildingGame:
                 robot.say("Sorry, I wasn't able to grasp it. Let me try again.")
         robot.action_home()
 
+    # Robot looks at a block and, instead of grasping, it just points
     def point_single_block(self, direction):
-        point_coordinates = {
-            "left": (-0.35, -0.25, -0.02),
-            "right": (-0.35, 0.3, 0.03)
-        }
+        point_coordinates = robot.point_coordinates
         robot.action_look(self.coordinates[direction])
         robot.action_point(point_coordinates[direction])
         robot.action_home()

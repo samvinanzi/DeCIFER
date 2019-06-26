@@ -72,7 +72,7 @@ class IntentionReader:
                     print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
                 else:
                     blank_detections += 1
-                    # This avoids infinite loops. If 50 skeletons are detected with no clust transition, then the system
+                    # This avoids infinite loops. If N skeletons are detected with no clust transition, then the system
                     # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
                     if blank_detections >= 20:
                         print("[DEBUG] Unable to infer intentions, sorry :(")
@@ -87,7 +87,7 @@ class IntentionReader:
                 if goal_name:
                     goal_found = True   # Exit condition
                     self.log.update_latest_goal(goal_name)
-                else:
+                elif robot.__class__.__name__ != "Sawyer":  # Sawyer doesn't need other waiting times
                     time.sleep(1 / fps)
         print("[DEBUG] " + self.__class__.__name__ + " stopped observing")
 

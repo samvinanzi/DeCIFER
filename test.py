@@ -8,10 +8,10 @@ import cv2
 import time
 import os
 import numpy as np
-#from Robot import Robot
 import pickle
 from messages import Request, Response
 from robots.robot_selector import robot
+from BlockBuildingGame import BlockBuildingGame
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -147,7 +147,54 @@ bb.end()
 #robot.action_close()
 
 #robot.action_home()
-robot.action_close()
+#robot.action_give()
+#robot.say("Take this!")
+#robot.action_home()
+#robot.action_close()
+
+#robot.action_home()
+#robot.action_display("wall")
+#time.sleep(1)
+#robot.action_display("tower")
+#time.sleep(1)
+#robot.action_display("castle")
+#time.sleep(1)
+#robot.action_display("stable")
+#robot.action_close()
 #time.sleep(1)
 #skeleton = robot.look_for_skeleton(None, 0)
 #skeleton.display_fast()
+
+
+bb = BlockBuildingGame(debug=True)
+bb.reload_training()
+bb.playing_phase(point=True)
+bb.end()
+
+#robot.action_display("Polleria")
+#robot.action_display("castle")
+
+#while True:
+    #time.sleep(0.5)
+    #image = robot.get_camera_frame()
+    #cv2.imwrite("img/frames/" + str(i) + ".jpg", image)
+    #cv2.imshow("Camera", image)
+    #cv2.waitKey(500)
+
+#time.sleep(3)
+#image = robot.get_camera_frame()
+#skeleton = robot.look_for_skeleton(None, 0)
+#skeleton.display_fast()
+
+"""
+robot.action_home()
+#robot.action_take("right")
+#time.sleep(3)
+robot.action_take("left")
+#time.sleep(3)
+robot.action_give()
+#robot.action_take("left")
+#robot.action_give()
+robot.action_home()
+robot.action_close()
+"""

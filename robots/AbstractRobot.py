@@ -36,6 +36,7 @@ class AbstractRobot(ABC):
         self.command_list = []
         self.command_list.reverse()
         self.AUTORESPONDER_ENABLED = False
+        self.coordinates = {}
 
     # Text to Speech
     def say(self, phrase):

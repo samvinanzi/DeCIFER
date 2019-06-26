@@ -16,6 +16,8 @@ class Request(object):
 		self.command = command.upper()
 		if isinstance(parameters, list) or parameters is None:
 			self.parameters = parameters
+		elif isinstance(parameters, str):
+			self.parameters = parameters.encode("utf-8")
 		else:
 			self.parameters = [parameters]
 

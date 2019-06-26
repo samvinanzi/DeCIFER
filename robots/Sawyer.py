@@ -27,6 +27,16 @@ class Sawyer(AbstractRobot):
         self.HOST = '10.0.0.90'
         self.PORT = 65432
         self.socket = None
+        # For Sawyer, coordinates are the joint angle configurationsvv
+        self.coordinates = {        # These coordinates are used for looking. Sawyer doesn't need to move his head
+            "left": "left",
+            "right": "right",
+            "center": "center",
+        }
+        self.point_coordinates = {      # Pickup locations for the blocks
+            "left": "left",
+            "right": "right"
+        }
 
     def connect_to_proxy(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -69,8 +79,6 @@ class Sawyer(AbstractRobot):
 
     def cleanup(self):
         self.action_close()
-        #self.socket.shutdown(socket.SHUT_WR)
-        #self.socket.close()
 
     # NETWORK REQUESTS: sensing and actuation
 
@@ -89,10 +97,12 @@ class Sawyer(AbstractRobot):
         pass
 
     def get_camera_frame(self, gripper=False):
+        #tic = time.time()
         if gripper:
             img = self.request_action("camera_gripper")
         else:
             img = self.request_action("camera_head")
+        #toc = time.time() - tic
         return np.asarray(img[0], dtype=np.uint8)
 
     def action_take(self, coordinates):
@@ -116,11 +126,30 @@ class Sawyer(AbstractRobot):
     def action_drop(self, coordinates):
         self.request_action("drop", coordinates)
 
+    def action_midpose(self):
+        self.request_action("midpose")
+
     def action_ping(self):
+        tic = time.time()
         self.request_action("ping")
+        toc = time.time() - tic
+        return toc
+
+    def action_display(self, img_name):
+        self.request_action("display", img_name)
+
+    def action_say(self, text):
+        self.request_action("say", text)
 
     def action_close(self):
         self.request_action("close")
+
+    # Text to Speech
+    def say(self, phrase):
+        self.action_say(phrase)     # Displays the text on screen
+        self.tts.say(phrase)
+        print("[DEBUG] Robot says: " + phrase)
+        self.tts.runAndWait()
 
     # This function does not make use of the image_containers parameter
     def look_for_skeleton(self, _, i):

@@ -7,7 +7,6 @@ Initializes the low- and high-level modules and connects them to each other.
 from LowLevel import LowLevel
 from HighLevel import HighLevel
 from TransitionQueue import TransitionQueue
-#from iCub import icub
 from robots.robot_selector import robot
 from Logger import Logger
 import time
