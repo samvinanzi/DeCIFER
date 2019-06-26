@@ -44,7 +44,7 @@ class Response(object):
 	def __str__(self):
 		message = "Response: " + str(self.status) + " "
 		if self.values:
-			if len(self.values[0]) > 50:
+			if len(str(self.values[0])) > 50:
 				message += "<image>"
 			else:
 				message += str(self.values)

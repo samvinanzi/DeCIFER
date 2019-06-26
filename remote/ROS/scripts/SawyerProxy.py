@@ -46,7 +46,7 @@ pl = PostureLibrary()
 
 class SawyerProxy:
 	def __init__(self):
-		self.current_position = "home"
+		self.current_position = None
 		self.close_request = False
 		self.latest_frame = None
 		rospy.init_node('SawyerProxy')
@@ -62,6 +62,7 @@ class SawyerProxy:
 		self.cameras.start_streaming('head_camera')		# Head camera is the default streaming device
 		# PoseLibrary debug
 		print("PoseLibrary was initialized with " + str(len(pl.postures)) + " postures.")
+		self.home()
 		# Work
 		self.listen_and_respond()
 	
@@ -189,7 +190,7 @@ class SawyerProxy:
 			request_event.clear()
 			available_event.set()
 			# Display the image
-			self.display_temp_image(image)
+			#self.display_temp_image(image)
 		
 	# Displays some speech text on the display
 	def say(self, message):
@@ -257,11 +258,7 @@ class SawyerProxy:
 			response = self.perform_action('point_left')
 		else:
 			response = self.perform_action('point_right')
-		for i in range(3):
-			self.gripper.close()
-			t.sleep(0.5)
-			self.gripper.open()
-			t.sleep(0.5)
+		self.gripper.close()
 		return response
 
 	def give(self):
