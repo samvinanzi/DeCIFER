@@ -24,7 +24,10 @@ class Request(object):
 	def __str__(self):
 		message = "Request: " + self.command + " "
 		if self.parameters:
-			message += str(self.parameters)
+			if isinstance(self.parameters, str) and len(self.parameters) > 30:
+				message += "<" + self.parameters[:20] + "...>"
+			else:
+				message += str(self.parameters)
 		return message
 
 
@@ -41,7 +44,7 @@ class Response(object):
 	def __str__(self):
 		message = "Response: " + str(self.status) + " "
 		if self.values:
-			if len(self.values[0]) > 30:
+			if len(str(self.values[0])) > 50:
 				message += "<image>"
 			else:
 				message += str(self.values)

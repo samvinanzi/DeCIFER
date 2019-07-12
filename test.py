@@ -12,6 +12,7 @@ import pickle
 from messages import Request, Response
 from robots.robot_selector import robot
 from BlockBuildingGame import BlockBuildingGame
+from colors import ColorObserver
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -133,18 +134,7 @@ bb.playing_phase(point=True)
 bb.end()
 """
 
-#request = Request("sake", [1.0, 2.0, 3.0])
-#print(request)
-#response = robot.send_proxy_request(request)
-#print(response)
 
-
-#robot.action_look([12.8, 0.2, 1.4])
-#time.sleep(1)
-#robot.action_take([12.8, 0.2, 1.4])
-#time.sleep(1)
-#robot.action_home()
-#robot.action_close()
 
 #robot.action_home()
 #robot.action_give()
@@ -166,13 +156,10 @@ bb.end()
 #skeleton.display_fast()
 
 
-bb = BlockBuildingGame(debug=True)
-bb.reload_training()
-bb.playing_phase(point=True)
-bb.end()
-
-#robot.action_display("Polleria")
-#robot.action_display("castle")
+#bb = BlockBuildingGame(debug=True)
+#bb.reload_training()
+#bb.playing_phase(point=True)
+#bb.end()
 
 #while True:
     #time.sleep(0.5)
@@ -186,15 +173,9 @@ bb.end()
 #skeleton = robot.look_for_skeleton(None, 0)
 #skeleton.display_fast()
 
-"""
-robot.action_home()
-#robot.action_take("right")
-#time.sleep(3)
-robot.action_take("left")
-#time.sleep(3)
-robot.action_give()
-#robot.action_take("left")
-#robot.action_give()
-robot.action_home()
-robot.action_close()
-"""
+
+cobs = ColorObserver()
+img = cv2.imread("./img/valid.jpeg")
+sequence = cobs.find_cubes(img)
+print(sequence)
+#cobs.display()
