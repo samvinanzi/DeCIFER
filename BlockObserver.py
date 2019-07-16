@@ -1,6 +1,6 @@
 """
 
-Color detection and blob analysis.
+Block detection and analysis.
 
 """
 
@@ -10,7 +10,7 @@ import numpy as np
 import re
 
 
-class ColorObserver:
+class BlockObserver:
     def __init__(self):
         self.latest_image = None
         self.latest_sequence = None
@@ -34,8 +34,10 @@ class ColorObserver:
             ]
         }
 
+    # todo crop input image?
+
     # Tries to find the colored cubes and analyses their positions
-    def find_cubes(self, img, dilate=False, erode=True, blur=False, kernel_size=5):
+    def detect_sequence(self, img, dilate=False, erode=True, blur=False, kernel_size=5):
         # converts frame to HSV
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         mask_dict = {}
@@ -57,11 +59,12 @@ class ColorObserver:
         centroids = {}
         for color, mask in mask_dict.items():
             nonzero = cv2.findNonZero(mask)     # Finds all the non-black pixels and calculates a bounding rectangle
+            if nonzero is None:
+                continue    # If the color is not found, skip the centroid search
             nonzero = np.asmatrix(nonzero)
-            # Min
+            # Min and max coordinates
             min_x = np.min(nonzero[:, 0])
             min_y = np.min(nonzero[:, 1])
-            # Max
             max_x = np.max(nonzero[:, 0])
             max_y = np.max(nonzero[:, 1])
             # Calculate centroid coordinates
@@ -79,7 +82,7 @@ class ColorObserver:
         self.latest_sequence = sequence
         return sequence
 
-    # Verifies if the cubes are aligned in a valid sequence
+    # Verifies if the cubes are aligned in a valid sequence. Optionally, analyzes a new sequence.
     def validate_sequence(self, sequence=None):
         if not sequence:
             sequence = self.latest_sequence

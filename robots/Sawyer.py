@@ -9,6 +9,7 @@ directly with the robot.
 from robots.AbstractRobot import AbstractRobot
 from messages import Request, Response, RemoteActionFailedException
 from Skeleton import Skeleton, NoHumansFoundException
+from BlockObserver import BlockObserver
 
 import socket
 import time
@@ -33,9 +34,11 @@ class Sawyer(AbstractRobot):
             "right": "right",
             "center": "center",
         }
-        self.point_coordinates = {      # Pickup locations for the blocks
-            "left": "left",
-            "right": "right"
+        self.block_coordinates = {      # Pickup locations for the blocks (name of the PoseLibrary pose)
+            "BLUE": "blue",
+            "ORANGE": "orange",
+            "RED": "red",
+            "GREEN": "green"
         }
 
     def connect_to_proxy(self):
@@ -97,19 +100,17 @@ class Sawyer(AbstractRobot):
         pass
 
     def get_camera_frame(self, gripper=False):
-        #tic = time.time()
         if gripper:
             img = self.request_action("camera_gripper")
         else:
             img = self.request_action("camera_head")
-        #toc = time.time() - tic
         return np.asarray(img[0], dtype=np.uint8)
 
-    def action_take(self, coordinates):
-        self.request_action("take", coordinates)
+    def action_take(self, block):
+        self.request_action("take", block)
 
-    def action_point(self, coordinates):
-        self.request_action("point", coordinates)
+    def action_point(self, block):
+        self.request_action("point", block)
 
     def action_give(self):
         self.request_action("give")
@@ -203,10 +204,24 @@ class Sawyer(AbstractRobot):
         print("Set goal name to: " + goal_name)
         return skeletons, goal_name
 
-    def search_for_object(self):
-        pass
-
+    # Checks if the construction is a valid one
     def evaluate_construction(self):
+        obs = BlockObserver()
+        # Retrieves a camera image
+        img = self.get_camera_frame()
+        # Analyzes and validates it
+        sequence = obs.detect_sequence(img)
+        print("[DEBUG] Detected block sequence: " + str(sequence))
+        return obs.validate_sequence(sequence)
+
+    # Counts the blocks visible on the table
+    def count_blocks(self):
+        obs = BlockObserver()
+        img = self.get_camera_frame()
+        sequence = obs.detect_sequence(img)
+        return len(sequence)
+
+    def search_for_object(self):
         pass
 
     def get_color(self):

@@ -12,7 +12,7 @@ import pickle
 from messages import Request, Response
 from robots.robot_selector import robot
 from BlockBuildingGame import BlockBuildingGame
-from colors import ColorObserver
+from BlockObserver import BlockObserver
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -173,9 +173,20 @@ bb.end()
 #skeleton = robot.look_for_skeleton(None, 0)
 #skeleton.display_fast()
 
-
+'''
 cobs = ColorObserver()
-img = cv2.imread("./img/valid.jpeg")
-sequence = cobs.find_cubes(img)
+valid = cv2.imread("./img/valid.jpeg")
+invalid = cv2.imread("./img/invalid.jpeg")
+sequence = cobs.detect_cubes(valid)
+print(cobs.validate_sequence())
+sequence = cobs.detect_cubes(invalid)
 print(cobs.validate_sequence())
 #cobs.display()
+'''
+
+obs = BlockObserver()
+img = cv2.imread("./img/blocks2/valid.jpeg")    # valid, invalid, incomplete, empty
+sequence = obs.detect_sequence(img)
+print(sequence)
+print("Valid? " + str(obs.validate_sequence()))
+print("Number of blocks: " + str(len(sequence)))

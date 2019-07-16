@@ -30,6 +30,7 @@ class CognitiveArchitecture:
         self.highlevel.start()
 
     # Updates a knowledge base
+    # todo there might be a bug: can I stop and start the StopThread?
     def update(self):
         # Stops a running high-level
         self.highlevel.stop()

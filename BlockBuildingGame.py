@@ -1,7 +1,8 @@
 """
 
 Block building game to test the cognitive architecture. The robot will learn the rules of the game and then help its
-partner to build one of the three constructions: towers, walls and castles.
+partner to build one of the three constructions: towers, walls, castles and stables.
+Tested with both iCub and Sawyer.
 Note (for myself): the cognitive system is generic and can learn whichever goals, this experiment is specific.
 
 """
