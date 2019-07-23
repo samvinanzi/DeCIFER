@@ -210,15 +210,15 @@ class Sawyer(AbstractRobot):
         # Retrieves a camera image
         img = self.get_camera_frame()
         # Analyzes and validates it
-        sequence = obs.detect_sequence(img)
+        sequence, validity = obs.process(img)
         print("[DEBUG] Detected block sequence: " + str(sequence))
-        return obs.validate_sequence(sequence)
+        return validity
 
     # Counts the blocks visible on the table
     def count_blocks(self):
         obs = BlockObserver()
         img = self.get_camera_frame()
-        sequence = obs.detect_sequence(img)
+        sequence, _ = obs.process(img)
         return len(sequence)
 
     def search_for_object(self):

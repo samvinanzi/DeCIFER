@@ -35,11 +35,12 @@ op = PyOP.OpenPose(net_pose_size, net_face_hands_size, output_size, model, model
 
 # This is a 2D skeleton class
 class Skeleton:
-    def __init__(self, image, id=0):
+    def __init__(self, image, id=0, lowerbody=False):
         self.origin = image.copy()
         self.keypoints = {}      # 2D skeleton obtained from OpenPose
         self.img = None
         self.id = id
+        self.lowerbody = lowerbody
         # Performs computations
         self.prepare()
 
@@ -88,6 +89,12 @@ class Skeleton:
             "LAnkle": Keypoint(keypoints[9][0], keypoints[9][1]),
             "Torso": Keypoint(keypoints[10][0], keypoints[10][1])
         }
+        # Optionally, disables all the lower-body parts (Knees and Ankles)
+        if not self.lowerbody:
+            self.keypoints["RKnee"] = Keypoint()    # Empty, aka missing, keypoint
+            self.keypoints["LKnee"] = Keypoint()
+            self.keypoints["RAnkle"] = Keypoint()
+            self.keypoints["LAnkle"] = Keypoint()
 
     # Computes the missing keypoint names
     def get_missing_keypoints(self, with_torso=False):

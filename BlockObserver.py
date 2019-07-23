@@ -12,21 +12,22 @@ import re
 
 class BlockObserver:
     def __init__(self):
-        self.latest_image = None
-        self.latest_sequence = None
+        self.img = None
+        self.img_result = None
+        self.sequence = None
         # Known colors and their ranges (lower and upper)
         self.colors = {
             'blue': [
-                np.array([99, 115, 150], np.uint8),
-                np.array([110, 255, 255], np.uint8)
+                np.array([92, 48, 20], np.uint8),
+                np.array([120, 250, 255], np.uint8)
             ],
             'orange': [
-                np.array([10, 100, 200], np.uint8),
+                np.array([5, 130, 200], np.uint8),
                 np.array([25, 255, 255], np.uint8)
             ],
             'red': [
-                np.array([136, 87, 111], np.uint8),
-                np.array([180, 255, 255], np.uint8)
+                np.array([0, 100, 111], np.uint8),
+                np.array([4, 255, 255], np.uint8)
             ],
             'green': [
                 np.array([36, 25, 25], np.uint8),
@@ -34,12 +35,26 @@ class BlockObserver:
             ]
         }
 
-    # todo crop input image?
+    # Executes all the chain of computations
+    def process(self, img):
+        self.img = img
+        self.crop()
+        sequence = self.detect_sequence()
+        validity = self.validate_sequence()
+        return sequence, validity
+
+    # Crops the input image to observe only the building area
+    def crop(self):
+        roi = self.img[280:332,355:461]        # y1:y2,x1:x2
+        self.img = roi
+        cv2.imwrite("roi.jpg", roi)
 
     # Tries to find the colored cubes and analyses their positions
-    def detect_sequence(self, img, dilate=False, erode=True, blur=False, kernel_size=5):
+    def detect_sequence(self, dilate=False, erode=True, blur=False, kernel_size=5):
+        assert self.img is not None, "Invalid operation. Invoke process() first"
+        img = self.img  # Safe copy
         # converts frame to HSV
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
         mask_dict = {}
         kernel = np.ones((kernel_size, kernel_size), "uint8")
         # Creates the binary mask and optionally morphs it
@@ -52,7 +67,7 @@ class BlockObserver:
             if blur:
                 mask = cv2.GaussianBlur(mask, (5, 5), 0)
             mask_dict[color] = mask
-            # Displays the binary mask for the specific color
+            # Debug: displays the binary mask for the specific colors
             #cv2.imshow(color + " mask", cv2.bitwise_and(img, img, mask=mask))
             #cv2.waitKey(0)
         # Finds the centroids
@@ -71,24 +86,23 @@ class BlockObserver:
             centroid_coordinates = (int((min_x + max_x) / 2), int((min_y + max_y) / 2))
             centroids[color] = centroid_coordinates
             # Draws the bounding box
-            cv2.rectangle(img, (min_x, min_y), (max_x, max_y), (255, 255, 255), 2)
+            cv2.rectangle(img, (min_x, min_y), (max_x, max_y), (255, 255, 255), 1)
         # Marks the centroids on the image, for display purposes
         for color, coords in centroids.items():
-            cv2.circle(img, (coords[0], coords[1]), 10, (0, 0, 0), -1)
-            cv2.putText(img, color, (coords[0]-50, coords[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), cv2.LINE_4)
-        self.latest_image= img
+            cv2.circle(img, (coords[0], coords[1]), 1, (0, 0, 0), -1)
+            cv2.putText(img, color[0], (coords[0]-10, coords[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0))
+        self.img_result = img
         # Sort the centroids to determine the color sequence
         sequence = [x[0].upper() for x in sorted(centroids.items(), key=lambda item: item[1])]
-        self.latest_sequence = sequence
+        self.sequence = sequence
         return sequence
 
-    # Verifies if the cubes are aligned in a valid sequence. Optionally, analyzes a new sequence.
-    def validate_sequence(self, sequence=None):
-        if not sequence:
-            sequence = self.latest_sequence
+    # Verifies if the cubes are aligned in a valid sequence.
+    def validate_sequence(self):
+        assert self.sequence is not None, "Invalid operation. Invoke process() first"
         # Converts the list of strings in a string code (e.g. 'BORG')
         string_sequence = ""
-        for element in sequence:
+        for element in self.sequence:
             string_sequence += element[0]
         # Tries to validate the string code against a regexp
         p = re.compile('([B|O][G|R][B|O][G|R])|([G|R][B|O][G|R][B|O])')
@@ -99,6 +113,6 @@ class BlockObserver:
             return False
 
     def display(self):
-        cv2.imshow("Processed image", self.latest_image)
+        cv2.imshow("Processed image", self.img_result)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
