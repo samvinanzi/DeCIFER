@@ -12,9 +12,10 @@ import re
 
 class BlockObserver:
     def __init__(self):
-        self.img = None
-        self.img_result = None
-        self.sequence = None
+        self.img = None                 # Original image
+        self.img_result = None          # Cropped and labelled image
+        self.sequence = None            # Ordered list containing the colors found
+        self.label = None               # String label that represents univocally the sequence
         # Known colors and their ranges (lower and upper)
         self.colors = {
             'blue': [
@@ -45,9 +46,8 @@ class BlockObserver:
 
     # Crops the input image to observe only the building area
     def crop(self):
-        roi = self.img[280:332,355:461]        # y1:y2,x1:x2
+        roi = self.img[280:332, 355:461]        # y1:y2, x1:x2
         self.img = roi
-        cv2.imwrite("roi.jpg", roi)
 
     # Tries to find the colored cubes and analyses their positions
     def detect_sequence(self, dilate=False, erode=True, blur=False, kernel_size=5):
@@ -95,18 +95,19 @@ class BlockObserver:
         # Sort the centroids to determine the color sequence
         sequence = [x[0].upper() for x in sorted(centroids.items(), key=lambda item: item[1])]
         self.sequence = sequence
+        # Converts the list of strings in a string code (e.g. 'BORG')
+        label = ""
+        for element in self.sequence:
+            label += element[0]
+        self.label = label
         return sequence
 
     # Verifies if the cubes are aligned in a valid sequence.
     def validate_sequence(self):
-        assert self.sequence is not None, "Invalid operation. Invoke process() first"
-        # Converts the list of strings in a string code (e.g. 'BORG')
-        string_sequence = ""
-        for element in self.sequence:
-            string_sequence += element[0]
+        assert self.label is not None, "Invalid operation. Invoke process() first"
         # Tries to validate the string code against a regexp
         p = re.compile('([B|O][G|R][B|O][G|R])|([G|R][B|O][G|R][B|O])')
-        m = p.match(string_sequence)
+        m = p.match(self.label)
         if m:
             return True
         else:

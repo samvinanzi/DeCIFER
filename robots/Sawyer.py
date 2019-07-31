@@ -43,6 +43,7 @@ class Sawyer(AbstractRobot):
 
     def connect_to_proxy(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(10.0)
         try:
             value = self.socket.connect((self.HOST, self.PORT))
             return True
@@ -194,6 +195,12 @@ class Sawyer(AbstractRobot):
             stop_listening(wait_for_stop=True)
             print("[DEBUG] Listening stopped")
         # At this point, an action has just been performed and terminated
+        # The robot looks at the final construction and gives it a name, based on the blocks disposition
+        obs = BlockObserver()
+        frame = self.get_camera_frame()
+        obs.process(frame)
+        goal_name = obs.label
+        '''
         self.say("What goal did you just show me?")
         print("Waiting for the label...")
         # Waits until the goal name is given
@@ -201,6 +208,7 @@ class Sawyer(AbstractRobot):
             goal_name = self.wait_and_listen_dummy()
         else:
             goal_name = self.wait_and_listen()
+        '''
         print("Set goal name to: " + goal_name)
         return skeletons, goal_name
 

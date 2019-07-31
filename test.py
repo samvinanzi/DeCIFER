@@ -12,8 +12,9 @@ import pickle
 from messages import Request, Response
 from robots.robot_selector import robot
 #from BlockBuildingGame import BlockBuildingGame
-from BlockBuildingGame2 import BlockBuildingGame
+from BlockBuildingGame2 import BlockBuildingGame2
 from BlockObserver import BlockObserver
+from CognitiveArchitecture import CognitiveArchitecture
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -137,13 +138,30 @@ for i in range(10):
 robot.say("End")
 '''
 
-'''
-bb = BlockBuildingGame(debug=True)
-bb.training_phase()
-bb.cognition.lowlevel.train.summarize_training()
-'''
 
+'''
 obs = BlockObserver()
 img = cv2.imread("./img/blocks2/sawyer_valid.jpg")
 print(obs.process(img))
 #obs.display()
+'''
+
+'''
+# Training only
+bb = BlockBuildingGame2(debug=True, save=True)
+bb.training_phase()
+bb.cognition.lowlevel.train.summarize_training()
+'''
+
+'''
+# Saves skeleton images to disk
+cog = CognitiveArchitecture()
+cog.train(reload=True)
+for skeleton in cog.lowlevel.train.skeletons:
+    cv2.imwrite("img/experiment2/trainingset/" + str(skeleton.id) + ".jpg", skeleton.origin)
+'''
+
+cog = CognitiveArchitecture(debug=True, offline=True)
+cog.train()
+cog.lowlevel.train.summarize_training()
+

@@ -19,9 +19,9 @@ HELPER_CSV = "belief/datasets/examples/helper.csv"
 TRICKER_CSV = "belief/datasets/examples/tricker.csv"
 
 
-class BlockBuildingGame:
-    def __init__(self, debug=False, fixed_goal=True, naive_trust=True):
-        self.cognition = CognitiveArchitecture(debug)
+class BlockBuildingGame2:
+    def __init__(self, debug=False, save=False, fixed_goal=True, naive_trust=True):
+        self.cognition = CognitiveArchitecture(debug=debug, persist=save)
         self.coordinates = robot.coordinates
         if naive_trust:
             self.bbn = BeliefNetwork("partner", HELPER_CSV)
@@ -41,7 +41,7 @@ class BlockBuildingGame:
         self.fixed_goal = fixed_goal  # Is the experiment in fixed or mutable goal configuration?
         robot.action_home()
         robot.action_look(self.coordinates["center"])
-        robot.say("Welcome to the intention reading experiment. We will start very soon.")
+        #robot.say("Welcome to the intention reading experiment. We will start very soon.")
         time.sleep(2)
 
     # Main execution of the experiment

@@ -21,7 +21,6 @@ import os
 import pickle
 import csv
 import math
-#from iCub import icub
 from robots.robot_selector import robot
 import cv2
 import subprocess
@@ -116,6 +115,9 @@ class Learner:
         i = 0
         while not finished:
             robot.say("Please, start demonstrating.")
+            if robot.__class__.__name__ == "Sawyer":
+                #robot.say("[watching]")
+                robot.action_display("eyes")
             # Learns a single goal
             skeletons, goal_name = robot.record_goal(i, fps=2, debug=self.debug)
             self.skeletons.extend(skeletons)    # extend instead of append to avoid nesting lists
@@ -139,10 +141,11 @@ class Learner:
                     robot.say("Sorry, I didn't understand. Can you repeat?")
 
     # Debug mode for skeleton acquisition: input from file rather than from robot eyes
-    # Assumes each goal is contained in a separated subdir names as the goal itself
-    def offline_learning(self, path="/home/samuele/Research/datasets/CAD-60/variations/", volume=20, savedir="objects/cad60/"):
+    # Assumes each goal is contained in a separated subdir named as the goal itself
+    def offline_learning(self, path="img/experiment2/trainingset/", volume=1, savedir="objects/cad60/"):
         tic = time.time()
         i = 0
+        id = 0
         for folder in os.listdir(path):
             print("---Processing folder: " + folder)
             basename = os.path.join(path, folder) + "/"
@@ -155,11 +158,10 @@ class Learner:
             sorted_files = sorted_files[::volume]
             images = np.empty(len(sorted_files), dtype=object)
             for n in range(0, len(sorted_files)):
-                print("Veryfing: " + str(os.path.join(basename, sorted_files[n])))
-                images[n] = cv2.imread(os.path.join(basename, sorted_files[n]))
+                print("Veryfing: " + str(sorted_files[n]))
+                images[n] = cv2.imread(sorted_files[n])
             # Create skeletons for all of them
             skeletons = []
-            id = 0
             for image in images:
                 try:
                     skeleton = Skeleton(image, id)
@@ -468,4 +470,4 @@ class Learner:
     def summarize_training(self):
         self.training_result()  # Clusters and intentions
         self.show_clustering()      # Graphical visualization of the clusters
-        self.plot_goal()            # Goals decompositions
+        #self.plot_goal()            # Goals decompositions todo re-enable

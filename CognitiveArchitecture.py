@@ -22,8 +22,6 @@ class CognitiveArchitecture:
     # Performs the training and learning
     def train(self, reload=False):
         training_data = self.lowlevel.reload_training() if reload else self.lowlevel.do_training()
-        #if not reload:
-            #self.lowlevel.train.summarize_training()   todo re-enable
         # Uses the training data to build the high-level model parameters
         self.highlevel.build_model(training_data)
         # Starts the high-level background thread to use it when needed
