@@ -29,6 +29,9 @@ class Keypoint:
     def is_empty(self):
         return True if self.x == 0.0 and self.y == 0.0 else False
 
+    def as_list(self):
+        return [self.x, self.y]
+
     def __str__(self):
         return "(" + str(self.x) + ", " + str(self.y) + ")"
 

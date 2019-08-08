@@ -10,6 +10,8 @@ import numpy as np
 import os
 from Keypoint import Keypoint
 import matplotlib.pyplot as plt
+import csv
+from ExtraFeatures import ExtraFeatures
 
 
 # ----- BEGIN PyOpenPose initialization ----- #
@@ -64,37 +66,23 @@ class Skeleton:
         else:
             print("[" + str(self.id) + "] One human detected.")
         keypoints = keypoints[0]
-        # KEYPOINT REDUCTION
         # Calculates a new keypoint for the hips as the median between points 8 and 11 of the original skeleton
         point8 = keypoints[8]
         point11 = keypoints[11]
         newpoint = np.array([(point8[0] + point11[0]) / 2, (point8[1] + point11[1]) / 2, (point8[2] + point11[2]) / 2])
-        # Delete unwanted keypoints
-        keypoints = np.delete(keypoints, [2, 5, 8, 11, 14, 15, 16, 17], 0)
-        # Add the new keypoint
-        keypoints = np.vstack([keypoints, newpoint])
-        # Removes the "confidence" column
-        keypoints = np.delete(keypoints, 2, axis=1)
-        # Saves the 2D pixel representation of the keypoints
-        self.keypoints = {
-            "Head": Keypoint(keypoints[0][0], keypoints[0][1]),
-            "Neck": Keypoint(keypoints[1][0], keypoints[1][1]),
-            "RElbow": Keypoint(keypoints[2][0], keypoints[2][1]),
-            "RWrist": Keypoint(keypoints[3][0], keypoints[3][1]),
-            "LElbow": Keypoint(keypoints[4][0], keypoints[4][1]),
-            "LWrist": Keypoint(keypoints[5][0], keypoints[5][1]),
-            "RKnee": Keypoint(keypoints[6][0], keypoints[6][1]),
-            "RAnkle": Keypoint(keypoints[7][0], keypoints[7][1]),
-            "LKnee": Keypoint(keypoints[8][0], keypoints[8][1]),
-            "LAnkle": Keypoint(keypoints[9][0], keypoints[9][1]),
-            "Torso": Keypoint(keypoints[10][0], keypoints[10][1])
-        }
-        # Optionally, disables all the lower-body parts (Knees and Ankles)
-        if not self.lowerbody:
-            self.keypoints["RKnee"] = Keypoint()    # Empty, aka missing, keypoint
-            self.keypoints["LKnee"] = Keypoint()
-            self.keypoints["RAnkle"] = Keypoint()
-            self.keypoints["LAnkle"] = Keypoint()
+        self.keypoints['Torso'] = Keypoint(newpoint[0], newpoint[1])
+        # Loads the desired keypoints based on the configuration file (NECK must never be disabled)
+        with open('./conf/keypoints.csv') as csv_file:
+            csv_reader = csv.DictReader(csv_file)
+            for kp in csv_reader:
+                name = kp['name']
+                id = int(kp['id'])
+                enabled = bool(int(kp['enabled']))
+                if name == "Neck" and not enabled:
+                    print("[WARNING] Neck keypoint cannot be disabled. Enabling it automatically.")
+                    enabled = True
+                if enabled:
+                    self.keypoints[name] = Keypoint(keypoints[id][0], keypoints[id][1])
 
     # Computes the missing keypoint names
     def get_missing_keypoints(self, with_torso=False):
@@ -179,10 +167,14 @@ class Skeleton:
             self.keypoints[name] = di
 
     # Returns a row array (1x30) of features for this skeleton as a dataset example
-    def as_feature(self):
+    def as_feature(self, add_extra=True):
         array = self.keypoints_to_array()
         # Deletes the final row corresponding to Torso.x and Torso.y (they are always zero)
         array = array[:-1, :]
+        if add_extra:
+            # Adds extra features
+            extra_features = ExtraFeatures(self.keypoints).get_features()
+            array = np.concatenate((array, extra_features), axis=None)
         return np.array(array).ravel()
 
     # Converts pixel coordinates to cartesian

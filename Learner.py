@@ -144,7 +144,7 @@ class Learner:
     # Assumes each goal is contained in a separated subdir named as the goal itself
     def offline_learning(self, path="img/experiment2/trainingset/", volume=1, savedir="objects/cad60/"):
         tic = time.time()
-        i = 0
+        #i = 0
         id = 0
         for folder in os.listdir(path):
             print("---Processing folder: " + folder)
@@ -158,7 +158,7 @@ class Learner:
             sorted_files = sorted_files[::volume]
             images = np.empty(len(sorted_files), dtype=object)
             for n in range(0, len(sorted_files)):
-                print("Veryfing: " + str(sorted_files[n]))
+                #print("Veryfing: " + str(sorted_files[n]))
                 images[n] = cv2.imread(sorted_files[n])
             # Create skeletons for all of them
             skeletons = []
@@ -172,7 +172,7 @@ class Learner:
             self.skeletons.extend(skeletons)
             self.goal_labels.append(folder)
             self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
-            i += len(skeletons)
+            #i += len(skeletons)
         dt = time.time() - tic
         print("\n\nProcessing completed. Elapsed time: " + str(dt / 60) + " minutes.")
         # Continue with normal learning phases
@@ -186,10 +186,12 @@ class Learner:
 
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self):
+        dim = len(self.skeletons[0].as_feature())   # Number of columns needed
         # Creates the dataset array
-        dataset = np.zeros(shape=(1, 10*Learner.DIMENSIONS))
+        dataset = np.zeros(shape=(1, dim))
         for skeleton in self.skeletons:
             # skeleton.display()
+            x = skeleton.as_feature()
             dataset = np.vstack((dataset, skeleton.as_feature()))
         # Removes the first, empty row
         self.dataset = dataset[1:]
@@ -204,6 +206,22 @@ class Learner:
     def generate_clusters(self):
         # initial centers with K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
+
+        # Dynamical search of the best hyperparameter
+        best_value = 0
+        best_score = 0
+        for tolerance in np.arange(0.001, 0.1, 0.001):
+            xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=20, tolerance=tolerance,
+                                         criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
+            xmeans_instance.process()
+            cluster_lists = xmeans_instance.get_clusters()
+            score = np.average(silhouette(list(self.dataset2d), cluster_lists).process().get_score())
+            print("Evaluating tolerance " + str(tolerance) + "... score " + str(score) + "(" + str(len(cluster_lists)) + " clusters)")
+            if score > best_score:
+                best_value = tolerance
+                best_score = score
+        print("BEST: " + str(best_value) + " with score " + str(best_score))
+
         # create object of X-Means algorithm that uses CCORE for processing
         # Default tolerance: 0.025
         xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=20, tolerance=0.025,

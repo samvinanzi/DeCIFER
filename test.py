@@ -15,6 +15,8 @@ from robots.robot_selector import robot
 from BlockBuildingGame2 import BlockBuildingGame2
 from BlockObserver import BlockObserver
 from CognitiveArchitecture import CognitiveArchitecture
+from Skeleton import Skeleton
+from ExtraFeatures import ExtraFeatures
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -161,7 +163,14 @@ for skeleton in cog.lowlevel.train.skeletons:
     cv2.imwrite("img/experiment2/trainingset/" + str(skeleton.id) + ".jpg", skeleton.origin)
 '''
 
+
 cog = CognitiveArchitecture(debug=True, offline=True)
 cog.train()
 cog.lowlevel.train.summarize_training()
 
+'''
+path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/frames/0.jpg"
+img = cv2.imread(path)
+s = Skeleton(img, 0)
+f = s.as_feature()
+'''
