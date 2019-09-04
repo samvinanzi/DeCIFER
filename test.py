@@ -167,10 +167,24 @@ for skeleton in cog.lowlevel.train.skeletons:
 cog = CognitiveArchitecture(debug=True, offline=True)
 cog.train()
 cog.lowlevel.train.summarize_training()
+print("Done")
 
 '''
-path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/frames/0.jpg"
+#path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/frames/0.jpg"
+path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/000.jpg"
 img = cv2.imread(path)
 s = Skeleton(img, 0)
 f = s.as_feature()
+print(f)
+'''
+'''
+basepath = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/{}.jpg"
+names = ["000", "B", "G", "O", "R"]
+for name in names:
+    print("---{}---".format(name))
+    path = basepath.format(name)
+    img = cv2.imread(path)
+    s = Skeleton(img, 0)
+    f = s.as_feature()
+    print(f[-5:])
 '''

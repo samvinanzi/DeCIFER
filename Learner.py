@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.patheffects as path_effects
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
 import pyclustering.cluster.xmeans as pyc
 from pyclustering.utils import draw_clusters
@@ -144,7 +145,6 @@ class Learner:
     # Assumes each goal is contained in a separated subdir named as the goal itself
     def offline_learning(self, path="img/experiment2/trainingset/", volume=1, savedir="objects/cad60/"):
         tic = time.time()
-        #i = 0
         id = 0
         for folder in os.listdir(path):
             print("---Processing folder: " + folder)
@@ -172,7 +172,6 @@ class Learner:
             self.skeletons.extend(skeletons)
             self.goal_labels.append(folder)
             self.offsets.append(len(skeletons) + (0 if len(self.offsets) == 0 else max(self.offsets)))
-            #i += len(skeletons)
         dt = time.time() - tic
         print("\n\nProcessing completed. Elapsed time: " + str(dt / 60) + " minutes.")
         # Continue with normal learning phases
@@ -185,18 +184,20 @@ class Learner:
             self.save(savedir)
 
     # Builds the dataset feature matrix of dimension (n x 20)
-    def generate_dataset(self):
+    def generate_dataset(self, feature_scaling=False):
         dim = len(self.skeletons[0].as_feature())   # Number of columns needed
         # Creates the dataset array
         dataset = np.zeros(shape=(1, dim))
         for skeleton in self.skeletons:
             # skeleton.display()
-            x = skeleton.as_feature()
             dataset = np.vstack((dataset, skeleton.as_feature()))
         # Removes the first, empty row
         self.dataset = dataset[1:]
+        # Optional feature scaling (standardization)
+        if feature_scaling:
+            self.dataset = StandardScaler().fit_transform(self.dataset)
 
-    # Performs dimensionality reduction from 20-D to 2-D through PCA
+    # Performs dimensionality reduction from n-D to 2-D through PCA
     def do_pca(self):
         # PCA to reduce dimensionality to 2D
         self.pca = PCA(n_components=Learner.PCA_DIMENSIONS).fit(self.dataset)

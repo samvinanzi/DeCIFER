@@ -173,7 +173,7 @@ class Skeleton:
         array = array[:-1, :]
         if add_extra:
             # Adds extra features
-            extra_features = ExtraFeatures(self.keypoints).get_features()
+            extra_features = ExtraFeatures(self).get_features()
             array = np.concatenate((array, extra_features), axis=None)
         return np.array(array).ravel()
 
@@ -247,7 +247,7 @@ class Skeleton:
         nonmissing_kp = self.nonmissing_keypoints()
         # Adds the Torso keypoint (it was normalized to (0,0) so it would be considered missing)
         if 'Torso' not in nonmissing_kp:
-            nonmissing_kp.update({'Torso':self.keypoints['Torso']})
+            nonmissing_kp.update({'Torso': self.keypoints['Torso']})
         array = self.keypoints_to_array(nonmissing_kp)
         x = array[:, 0]
         y = array[:, 1]
@@ -295,8 +295,9 @@ class Skeleton:
         # Returns the image, in case some other component needs it
         return roi
 
+
 """
-# --------------------------------------------------- 3 D ------------------------------------------------------------- #
+# --------------------------------------------------- 3 D ------------------------------------------------------------ #
 
 # TO BE RE-IMPLEMENT IF NEEDED, POSSIBLY AS A SUBLCASS OF Skeleton.
 
