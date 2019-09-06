@@ -164,8 +164,8 @@ for skeleton in cog.lowlevel.train.skeletons:
 '''
 
 
-cog = CognitiveArchitecture(debug=True, offline=True)
-cog.train()
+cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+cog.train(reload=False)
 cog.lowlevel.train.summarize_training()
 print("Done")
 
@@ -186,5 +186,5 @@ for name in names:
     img = cv2.imread(path)
     s = Skeleton(img, 0)
     f = s.as_feature()
-    print(f[-5:])
+    print(f)
 '''

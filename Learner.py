@@ -65,6 +65,7 @@ class Learner:
     # Reload already computed Controller data
     def reload_data(self, path="objects/"):
         try:
+            print("[DEBUG] Reloading from " + str(path))
             self.load(path)
         except Exception:
             print("Error: failed to load Controller data.")
@@ -90,6 +91,7 @@ class Learner:
         pickle.dump(self.goal_labels, open(savedir + "goal_labels.p", "wb"))
         pickle.dump(self.pca, open(savedir + "pca.p", "wb"))
         pickle.dump(self.ax, open(savedir + "ax.p", "wb"))
+        print("[DEBUG] model saved in " + str(savedir))
 
     # Loads the objects from binary format
     def load(self, path="objects/"):
@@ -143,7 +145,7 @@ class Learner:
 
     # Debug mode for skeleton acquisition: input from file rather than from robot eyes
     # Assumes each goal is contained in a separated subdir named as the goal itself
-    def offline_learning(self, path="img/experiment2/trainingset/", volume=1, savedir="objects/cad60/"):
+    def offline_learning(self, path="img/experiment2/trainingset/", volume=1, savedir="objects/offline/"):
         tic = time.time()
         id = 0
         for folder in os.listdir(path):
