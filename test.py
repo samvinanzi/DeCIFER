@@ -163,10 +163,17 @@ for skeleton in cog.lowlevel.train.skeletons:
     cv2.imwrite("img/experiment2/trainingset/" + str(skeleton.id) + ".jpg", skeleton.origin)
 '''
 
-
+'''
 cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
 cog.train(reload=False)
 cog.lowlevel.train.summarize_training()
+print("Done")
+'''
+
+cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+cog.train(reload=True)
+cog.lowlevel.train.summarize_training()
+cog.read_intention(simulation=True)
 print("Done")
 
 '''

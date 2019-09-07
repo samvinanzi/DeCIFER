@@ -160,5 +160,35 @@ class IntentionReader:
                     goal_found = True  # Exit condition
                     self.log.update_latest_goal(goal_name)
                 else:
-                    time.sleep(1 / fps)
+                    time.sleep(0.5)
         print("[DEBUG] " + self.__class__.__name__ + " stopped observing")
+
+    # Observer simulator, accepts commands from the keyboard
+    def observer_simulator(self):
+        assert self.env is not None, "Environment must be initialized"
+        print("[DEBUG] OBSERVER SIMULATOR is online.")
+        goal_found = False
+        blank_detections = 0
+        while not goal_found:
+            cluster_id = int(input('Enter observed cluster id: '))
+            if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
+                blank_detections = 0  # reset
+                self.intention.actions.append(cluster_id)  # No goal must be specified in testing phase
+                # Notify the new transition to the upper level
+                self.tq.put(cluster_id)
+                print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
+            else:
+                blank_detections += 1
+                # This avoids infinite loops. If N skeletons are detected with no clust transition, then the system
+                # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
+                if blank_detections >= 20:
+                    print("[DEBUG] Unable to infer intentions, sorry :(")
+                    self.tq.write_goal_name("failure")
+                    blank_detections = 0
+            # Checks to see if a goal was found to decide if to stop processing
+            goal_name = self.tq.was_goal_inferred()
+            if goal_name:
+                goal_found = True  # Exit condition
+            elif robot.__class__.__name__ != "Sawyer":  # Sawyer doesn't need other waiting times
+                time.sleep(0.5)
+        print("[DEBUG] OBSERVER SIMLATOR offline.")
