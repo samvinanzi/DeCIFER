@@ -17,6 +17,7 @@ class ExtraFeatures:
         if angles:
             self.elbow_angle()
         if gaze:
+            #self.gaze_direction(roll, pitch, yaw)
             self.gaze_direction()
 
     # Returns the full new feature list
@@ -67,12 +68,13 @@ class ExtraFeatures:
 
     # Estimate the gaze direction.
     # Adds up to three features: [roll, pitch, yaw]
-    def gaze_direction(self, roll=True, pitch=True, yaw=True, debug=True):
+    def gaze_direction(self, roll=True, pitch=True, yaw=True, debug=False):
         assert roll or pitch or yaw, "At least one of the dimensions must be true."
         # Resize the image to be a square encompassing the upper part of the picture
         image = deepgaze.resize_input(self.skeleton.img)
         if debug:
             print("[DEBUG] Predicting gaze for skeleton " + str(self.skeleton.id))
+            print("[DEBUG] Image size: " + str(image.shape))
         # Calculate R/P/Y
         if roll:
             roll = deepgaze.get_roll(image)  # Evaluate the roll angle using a CNN

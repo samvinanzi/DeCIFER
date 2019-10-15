@@ -167,10 +167,15 @@ class Skeleton:
             self.keypoints[name] = di
 
     # Returns a row array (1x30) of features for this skeleton as a dataset example
-    def as_feature(self, add_extra=True):
-        array = self.keypoints_to_array()
-        # Deletes the final row corresponding to Torso.x and Torso.y (they are always zero)
-        array = array[:-1, :]
+    def as_feature(self, add_extra=True, only_extra=False):
+        if only_extra and not add_extra:    # Sanity check
+            add_extra = True
+        if not only_extra:
+            array = self.keypoints_to_array()
+            # Deletes the final row corresponding to Torso.x and Torso.y (they are always zero)
+            array = array[:-1, :]
+        else:
+            array = np.array([])    # Starts with an empty array
         if add_extra:
             # Adds extra features
             extra_features = ExtraFeatures(self).get_features()

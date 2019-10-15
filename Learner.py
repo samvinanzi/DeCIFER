@@ -26,6 +26,7 @@ from robots.robot_selector import robot
 import cv2
 import subprocess
 import time
+from L2Node import L2Node
 
 
 class Learner:
@@ -38,6 +39,7 @@ class Learner:
         self.dataset = []       # 20-D dataset
         self.dataset2d = []     # 2-D dataset
         self.clusters = []      # Clusters
+        self.l2nodes = []       # Progressive Clustering L2 nodes
         self.intentions = []    # Intentions
         self.goal_labels = []   # Goal labels
         self.pca = None         # Trained parameters of a PCA model
@@ -179,20 +181,19 @@ class Learner:
         # Continue with normal learning phases
         self.generate_dataset()
         self.do_pca()
-        score = self.generate_clusters()
-        print("[DEBUG] Clustering silhouette score: " + str(score))
+        self.generate_clusters()
         self.generate_intentions()
         if self.persist:
             self.save(savedir)
 
     # Builds the dataset feature matrix of dimension (n x 20)
     def generate_dataset(self, feature_scaling=False):
-        dim = len(self.skeletons[0].as_feature())   # Number of columns needed
+        dim = len(self.skeletons[0].as_feature(add_extra=False))   # Number of columns needed
         # Creates the dataset array
         dataset = np.zeros(shape=(1, dim))
         for skeleton in self.skeletons:
             # skeleton.display()
-            dataset = np.vstack((dataset, skeleton.as_feature()))
+            dataset = np.vstack((dataset, skeleton.as_feature(add_extra=False)))
         # Removes the first, empty row
         self.dataset = dataset[1:]
         # Optional feature scaling (standardization)
@@ -205,58 +206,164 @@ class Learner:
         self.pca = PCA(n_components=Learner.PCA_DIMENSIONS).fit(self.dataset)
         self.dataset2d = self.pca.transform(self.dataset).tolist()
 
-    # Performs X-Means clustering on the provided dataset
-    def generate_clusters(self):
-        # initial centers with K-Means++ method
-        initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
-
-        # Dynamical search of the best hyperparameter
-        best_value = 0
+    # Dynamical hyperparameter search for XMeans. Finds the best value of tolerance based on silhouette score
+    def dynamical_hyperparameter_search(self, data, initial_centers, debug=False):
+        best_tolerance = 0
         best_score = 0
-        for tolerance in np.arange(0.001, 0.1, 0.001):
-            xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=20, tolerance=tolerance,
+        best_n_clusters = 0
+        print("Dynamical hyperparameter search in progress...")
+        for tolerance in np.arange(0.001, 0.3, 0.001):
+            xmeans_instance = pyc.xmeans(data, initial_centers, ccore=True, kmax=20, tolerance=tolerance,
                                          criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
             xmeans_instance.process()
             cluster_lists = xmeans_instance.get_clusters()
             score = np.average(silhouette(list(self.dataset2d), cluster_lists).process().get_score())
-            print("Evaluating tolerance " + str(tolerance) + "... score " + str(score) + "(" + str(len(cluster_lists)) + " clusters)")
+            if debug:
+                print("Evaluating tolerance " + str(tolerance) + "... score " + str(score) + "(" + str(len(cluster_lists)) + " clusters)")
             if score > best_score:
-                best_value = tolerance
+                best_tolerance = tolerance
                 best_score = score
-        print("BEST: " + str(best_value) + " with score " + str(best_score))
+                best_n_clusters = len(cluster_lists)
+        print("BEST: " + str(best_tolerance) + " with score " + str(best_score) + "( " + str(best_n_clusters) + " clusters)")
+        return best_tolerance
 
-        # create object of X-Means algorithm that uses CCORE for processing
-        # Default tolerance: 0.025
-        xmeans_instance = pyc.xmeans(self.dataset2d, initial_centers, ccore=True, kmax=20, tolerance=0.025,
-                                     criterion=pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION)
+    # XMeans clustering
+    # Parameter base_id is used in second-level clustering to determine the proper nomenclature of the clusters
+    def xmeans_clustering(self, data, use_BIC=True, base_id=None):
+        # initial centers with K-Means++ method
+        initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
+        # Dynamical search of the best hyperparameter
+        tolerance = self.dynamical_hyperparameter_search(self.dataset2d, initial_centers)
+        if use_BIC:
+            criterion = pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION
+        else:
+            criterion = pyc.splitting_type.MINIMUM_NOISELESS_DESCRIPTION_LENGTH
+        # create object of X-Means algorithm that uses CCORE for processing (default tolerance: 0.025)
+        xmeans_instance = pyc.xmeans(data, initial_centers, ccore=True, kmax=20, tolerance=tolerance, criterion=criterion)
         # run cluster analysis
         xmeans_instance.process()
         # obtain results of clustering
         centers = xmeans_instance.get_centers()
         cluster_lists = xmeans_instance.get_clusters()
-        # Calculate Silhouette score for each points and averages it
+        # Calculate Silhouette score for each point and averages it
         score = np.average(silhouette(list(self.dataset2d), cluster_lists).process().get_score())
-        colors = ['yellow', 'blue', 'red', 'brown', 'violet', 'deepskyblue', 'darkgrey', 'lightsalmon', 'deeppink',
-                  'darkgreen', 'black', 'mediumspringgreen', 'orange', 'darkviolet', 'darkblue', 'silver', 'lime',
-                  'pink', 'gold', 'bisque']
-        # Sanity check
-        if len(centers) > len(colors):
-            print("[WARNING] More than " + str(len(colors)) + " clusters detected, cannot display them all.")
-            # Extend the colors list to avoid index out of bounds during next phase
-            # Visualization will be impaired but the computation will not be invalidated
-            colors.extend(['white'] * (len(centers) - len(colors)))
+        clusters = []
+        colors = Cluster.get_colors(len(centers))
         for i in range(len(centers)):
-            c = Cluster(centers[i], cluster_lists[i], i, colors[i])
-            self.clusters.append(c)
-        # generate plot and optionally display it
-        self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
-        return score
+            # Determines the cluster nomenclature
+            if base_id is not None:
+                id = base_id + (i+1) / 10.0        # e.g. cluster id 2.1, 2.2 ...
+                level = 2
+            else:
+                id = i+1
+                level = 1
+            c = Cluster(centers[i], cluster_lists[i], id, colors[i], level)
+            clusters.append(c)
+        self.ax = draw_clusters(data, cluster_lists, display_result=True)
+        return clusters, score, [centers, cluster_lists]
 
-    # Find the cluster id containing the skeleton (make it more pythonic)
+    # Performs X-Means clustering on the provided dataset
+    def generate_clusters(self):
+        final_clusters = []
+        # Perform xmeans clustering on the sole skeletal data
+        clusters, _, _ = self.xmeans_clustering(self.dataset2d, use_BIC=True)       # L1 clustering
+        # todo debug... remove
+        if len(clusters) != 3:
+            self.generate_clusters()
+            return
+        final_clusters.extend(clusters)
+        # Define the cluster which contains the neutral posture (the largest one)
+        other_clusters = clusters.copy()
+        neutral_cluster = max(other_clusters, key=lambda x: len(x.skeleton_ids))
+        other_clusters.remove(neutral_cluster)
+        # For each one of the secondary clusters, re-cluster using only the extra features
+        for parent_cluster in other_clusters:
+            # Collect the data
+            data = [skeleton.as_feature(only_extra=True) for skeleton in self.skeletons if skeleton.id in parent_cluster.skeleton_ids]
+            # Store this subdataset as an L2Node to be able to perform L2 inference during the intention reading phase
+            new_l2_node = L2Node(parent_cluster.id, data)
+            self.l2nodes.append(new_l2_node)
+            data2d = new_l2_node.dataset2d
+            # Perform clustering
+            secondary_clusters, _, pyc_data = self.xmeans_clustering(data2d, use_BIC=False, base_id=parent_cluster.id)
+            final_clusters.extend(secondary_clusters)
+            parent_cluster.descendants = secondary_clusters
+            self.ax = draw_clusters(data2d, pyc_data[1], display_result=False)
+            # todo temporary: plot sub-cluster pictures
+            for skeleton in [skeleton for skeleton in self.skeletons if skeleton.id in parent_cluster.skeleton_ids]:
+                im = OffsetImage(skeleton.img, zoom=0.38)
+                coordinate_index = parent_cluster.skeleton_ids.index(skeleton.id)  # Data and skeletons are not aligned, I must fetch the id specifically
+                coordinates = data2d[coordinate_index]
+                #cluster_id = self.find_cluster_id(skeleton.id)
+                # Sanity check
+                #if cluster_id is None:
+                #    print("Error! Couldn't find cluster in which a skeleton belongs")
+                #    raise RuntimeError
+                #else:
+                color = 'red' if skeleton.id in secondary_clusters[0].skeleton_ids else 'blue'
+                ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
+                ab.set_zorder(2)
+                self.ax.add_artist(ab)
+            # Plots the clusters centroids
+            for sub_cluster in secondary_clusters:
+                x = sub_cluster.centroid[0]
+                y = sub_cluster.centroid[1]
+                text = self.ax.text(x, y + 0.015, sub_cluster.id, fontsize=40, color='white')
+                # Adds the black border around the text
+                text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'), path_effects.Normal()])
+                plt.scatter(x, y, zorder=3, marker='o', s=10, c=sub_cluster.color, edgecolors='black', linewidths='2')
+            plt.show()
+            #self.show_clustering()
+        # Recolor all the clusters
+        colors = Cluster.get_colors(len(final_clusters))
+        for i in range(0, len(final_clusters)):
+            final_clusters[i].color = colors[i]
+        self.clusters = final_clusters
+        # generate plot and optionally display it
+        #self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
+        #return score
+
+    # Gets a cluster set or subset.
+    def get_cluster_set(self, level, parent_id=None):
+        assert level > 0, "Invalid value for level parameter"
+        assert level > 1 and parent_id is not None, "A parent id must be specified for levels 2+"
+        if level == 1:
+            return [cluster for cluster in self.clusters if cluster.level == 1]
+        else:
+            return [cluster for cluster in self.clusters if cluster.level == 2 and cluster.get_parent_id() == parent_id]
+
+    # Find the cluster id containing the skeleton
     def find_cluster_id(self, skeleton_id):
-        for i in range(len(self.clusters)):
-            if skeleton_id in self.clusters[i].skeleton_ids:
-                return i
+        # Iterates over the L1 clusters
+        for l1_cluster in self.get_cluster_set(1):
+            if skeleton_id in l1_cluster.skeleton_ids:
+                # Once it finds the skeleton, it checks wheter the cluster is a parent (in that case, search must go on)
+                if not l1_cluster.is_parent():
+                    return l1_cluster.id
+                else:
+                    # Search in the specific subset of L2 clusters
+                    for l2_cluster in self.get_cluster_set(2, l1_cluster.id):
+                        if skeleton_id in l2_cluster.skeleton_ids:
+                            return l2_cluster.id
+        return None
+
+    # Finds the closest centroid to a new skeletal sample (already in 2D coordinates).
+    # A list of clusters in which to search for must be provided.
+    def find_closest_centroid(self, sample2d, cluster_set):
+        min_distance = float("inf")
+        closest_cluster = None
+        for cluster in cluster_set:
+            dist = math.hypot(sample2d[0] - cluster.centroid[0], sample2d[1] - cluster.centroid[1])
+            if dist < min_distance:
+                min_distance = dist
+                closest_cluster = cluster
+        return closest_cluster
+
+    # Retrieves an L2Node with specified id, or None if not found
+    def get_l2node(self, id):
+        for l2node in self.l2nodes:
+            if l2node.id == id:
+                return l2node
         return None
 
     # Saves a dataset as a csv
@@ -265,17 +372,6 @@ class Learner:
         with file:
             writer = csv.writer(file)
             writer.writerows(self.dataset)
-
-    # Finds the closest centroid to a new skeletal sample (already in 2D coordinates)
-    def find_closest_centroid(self, sample2d):
-        min_distance = float("inf")
-        closest_cluster = None
-        for cluster in self.clusters:
-            dist = math.hypot(sample2d[0] - cluster.centroid[0], sample2d[1] - cluster.centroid[1])
-            if dist < min_distance:
-                min_distance = dist
-                closest_cluster = cluster.id
-        return closest_cluster
 
     # Computes intentions for each training sequence
     def generate_intentions(self):
@@ -411,7 +507,7 @@ class Learner:
             text = self.ax.text(x, y + 0.015, cluster.id, fontsize=40, color='white')
             # Adds the black border around the text
             text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'), path_effects.Normal()])
-            plt.scatter(x, y, zorder=3, marker='o', s=1000, c=cluster.color, edgecolors='black', linewidths='2')
+            plt.scatter(x, y, zorder=3, marker='o', s=10, c=cluster.color, edgecolors='black', linewidths='2')
         plt.show()
 
     # Plots the whole action representations for each goal, with the associated skeletons

@@ -32,6 +32,8 @@ class IntentionReader:
         assert isinstance(environment, Learner), "Environment must be an instance of Learner class"
         self.env = environment
 
+    # 
+
     # Observes the scene and reads intentions
     def observe(self, fps=2):
         assert self.env is not None, "Environment must be initialized"
@@ -53,7 +55,9 @@ class IntentionReader:
                 if self.dataset is None:
                     self.dataset = feature
                 else:
-                    self.dataset = np.vstack((self.dataset, skeleton.as_feature()))
+                    self.dataset = np.vstack((self.dataset, skeleton.as_feature()))     # todo does this do anything?
+                # Finds the closest cluster in L1 space. If it's a parent node, then do L2 clustering on that L2Node
+                l1_clusters = self.env.get_cluster_set(1)
                 # Applies PCA
                 feature2d = self.env.pca.transform(feature).tolist()
                 if self.dataset2d is None:
@@ -61,7 +65,20 @@ class IntentionReader:
                 else:
                     self.dataset2d = np.vstack((self.dataset2d, feature2d))
                 # Cluster and examine the transitions
-                cluster_id = self.env.find_closest_centroid(*feature2d)     # Unpacking of the list
+                cluster = self.env.find_closest_centroid(*feature2d, l1_clusters)     # Unpacking of the list
+                if cluster.is_parent():
+                    # L2 search
+                    l2_feature = skeleton.as_feature(add_extra=True, only_extra=True)
+                    l2_feature = l2_feature.reshape(1, -1)
+                    l2_clusters = self.env.get_cluster_set(2, cluster.id)
+                    l2_node = self.env.get_l2node(cluster.id)
+                    l2_dataset2d, l2_pca = l2_node.get_data()
+                    # Applies PCA
+                    l2_feature2d = l2_pca.transform(l2_feature).tolist()
+                    l2_cluster = self.env.find_closest_centroid(*l2_feature2d, l2_clusters)
+                    cluster_id = l2_cluster.id
+                else:
+                    cluster_id = cluster.id
                 if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
                     blank_detections = 0    # reset
                     self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
@@ -186,9 +203,8 @@ class IntentionReader:
                     self.tq.write_goal_name("failure")
                     blank_detections = 0
             # Checks to see if a goal was found to decide if to stop processing
+            time.sleep(1)   # Gives a chance to the high level to elaborate the goal
             goal_name = self.tq.was_goal_inferred()
             if goal_name:
                 goal_found = True  # Exit condition
-            elif robot.__class__.__name__ != "Sawyer":  # Sawyer doesn't need other waiting times
-                time.sleep(0.5)
         print("[DEBUG] OBSERVER SIMLATOR offline.")
