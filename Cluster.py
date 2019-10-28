@@ -38,4 +38,4 @@ class Cluster:
 
     # Is this cluster a parent?
     def is_parent(self):
-        return True if self.descendants is not None else False
+        return bool(self.descendants)   # If descendants is empty, returns False

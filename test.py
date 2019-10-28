@@ -164,10 +164,11 @@ for skeleton in cog.lowlevel.train.skeletons:
 '''
 
 
-cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+cog = CognitiveArchitecture(debug=True, offline=True, persist=True)
 cog.train(reload=False)
 cog.lowlevel.train.summarize_training()
 print("Done")
+
 
 '''
 cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
@@ -176,6 +177,7 @@ cog.lowlevel.train.summarize_training()
 cog.read_intention(simulation=True)
 print("Done")
 '''
+
 '''
 #path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/frames/0.jpg"
 path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/000.jpg"
@@ -200,25 +202,7 @@ game = BlockBuildingGame2(debug=True)
 game.reload_training()
 game.playing_phase()
 '''
-'''
-cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
-cog.train(reload=True)
-from pyclustering.cluster.dbscan import dbscan
-from pyclustering.cluster import cluster_visualizer
-# Create DBSCAN algorithm.
-sample = cog.lowlevel.train.dataset2d
-dbscan_instance = dbscan(sample, 0.1, 3)
-# Start processing by DBSCAN.
-dbscan_instance.process()
-# Obtain results of clustering.
-clusters = dbscan_instance.get_clusters()
-noise = dbscan_instance.get_noise()
-# Visualize clustering results
-visualizer = cluster_visualizer()
-visualizer.append_clusters(clusters, sample)
-visualizer.append_cluster(noise, sample, marker='x')
-visualizer.show()
-'''
+
 '''
 import itertools
 for i in itertools.product([0,1],repeat=4):

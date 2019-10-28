@@ -27,11 +27,13 @@ import cv2
 import subprocess
 import time
 from L2Node import L2Node
+import copy
 
 
 class Learner:
     DIMENSIONS = 2              # Currently working with 2D skeletons
     PCA_DIMENSIONS = 2           # Dimensionality reduction target dimensions
+    latest_index = None         # This is used in L2 cluster identification assignment
 
     def __init__(self, debug=False, persist=False):
         self.skeletons = []     # Observed skeletons
@@ -229,7 +231,7 @@ class Learner:
 
     # XMeans clustering
     # Parameter base_id is used in second-level clustering to determine the proper nomenclature of the clusters
-    def xmeans_clustering(self, data, use_BIC=True, base_id=None):
+    def xmeans_clustering(self, data, use_BIC=True, base_id=None, removal_threshold=3, reference=None):
         # initial centers with K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
         # Dynamical search of the best hyperparameter
@@ -249,16 +251,32 @@ class Learner:
         score = np.average(silhouette(list(self.dataset2d), cluster_lists).process().get_score())
         clusters = []
         colors = Cluster.get_colors(len(centers))
+        # Outlier removal: simply discard clusters which are too small
+        for i, cluster_list in enumerate(cluster_lists):
+            if len(cluster_list) < removal_threshold:
+                cluster_lists.pop(i)
+                centers.pop(i)
+                print("[DEBUG] I have removed cluster " + str(cluster_list) + " from the final cluster list.")
         for i in range(len(centers)):
             # Determines the cluster nomenclature
             if base_id is not None:
-                id = base_id + (i+1) / 10.0        # e.g. cluster id 2.1, 2.2 ...
+                #id = base_id + (i+1) / 10.0        # e.g. cluster id 2.1, 2.2 ...
+                id = Learner.latest_index + 1
+                Learner.latest_index += 1
                 level = 2
             else:
                 id = i+1
                 level = 1
-            c = Cluster(centers[i], cluster_lists[i], id, colors[i], level)
+            cl = copy.deepcopy(cluster_lists)   # I need to make a copy because of the id fixation that will come after
+            c = Cluster(centers[i], cl[i], id, colors[i], level)
             clusters.append(c)
+        # If this is a L2 clustering process, skeleton ids must be fixed
+        # xmeans.get_clusters returns id wrt the passed dataset. We need ids wrt the global dataset
+        if base_id is not None and reference is not None:
+            for cluster in clusters:
+                for i in range(len(cluster.skeleton_ids)):
+                    value = cluster.skeleton_ids[i]
+                    cluster.skeleton_ids[i] = reference[value]
         self.ax = draw_clusters(data, cluster_lists, display_result=True)
         return clusters, score, [centers, cluster_lists]
 
@@ -266,9 +284,11 @@ class Learner:
     def generate_clusters(self):
         final_clusters = []
         # Perform xmeans clustering on the sole skeletal data
+        print("L1 clustering")
         clusters, _, _ = self.xmeans_clustering(self.dataset2d, use_BIC=True)       # L1 clustering
         # todo debug... remove
         if len(clusters) != 3:
+            print("[DEBUG] Re-clustering...")
             self.generate_clusters()
             return
         final_clusters.extend(clusters)
@@ -276,6 +296,7 @@ class Learner:
         other_clusters = clusters.copy()
         neutral_cluster = max(other_clusters, key=lambda x: len(x.skeleton_ids))
         other_clusters.remove(neutral_cluster)
+        Learner.latest_index = max([cluster.id for cluster in clusters])
         # For each one of the secondary clusters, re-cluster using only the extra features
         for parent_cluster in other_clusters:
             # Collect the data
@@ -285,7 +306,8 @@ class Learner:
             self.l2nodes.append(new_l2_node)
             data2d = new_l2_node.dataset2d
             # Perform clustering
-            secondary_clusters, _, pyc_data = self.xmeans_clustering(data2d, use_BIC=False, base_id=parent_cluster.id)
+            print("L2 clustering")
+            secondary_clusters, _, pyc_data = self.xmeans_clustering(data2d, use_BIC=False, base_id=parent_cluster.id, reference=parent_cluster.skeleton_ids)
             final_clusters.extend(secondary_clusters)
             parent_cluster.descendants = secondary_clusters
             self.ax = draw_clusters(data2d, pyc_data[1], display_result=False)
@@ -323,14 +345,25 @@ class Learner:
         #self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
         #return score
 
+    # Fetches a specified cluster by id
+    def find_cluster_by_id(self, id):
+        for cluster in self.clusters:
+            if cluster.id == id:
+                return cluster
+        return None
+
     # Gets a cluster set or subset.
     def get_cluster_set(self, level, parent_id=None):
         assert level > 0, "Invalid value for level parameter"
-        assert level > 1 and parent_id is not None, "A parent id must be specified for levels 2+"
         if level == 1:
-            return [cluster for cluster in self.clusters if cluster.level == 1]
+            return [cluster for cluster in self.clusters if cluster.level == 1]     # All L1 clusters
         else:
-            return [cluster for cluster in self.clusters if cluster.level == 2 and cluster.get_parent_id() == parent_id]
+            assert parent_id is not None, "A parent id must be specified for levels 2+"
+            parent_cluster = self.find_cluster_by_id(parent_id)
+            if parent_cluster is None:
+                return []
+            else:
+                return [cluster for cluster in parent_cluster.descendants]  # Specific L2 subset
 
     # Find the cluster id containing the skeleton
     def find_cluster_id(self, skeleton_id):
@@ -386,8 +419,9 @@ class Learner:
             for skeleton_index in range(previous, self.offsets[offset_index]):
                 # Retrieve the cluster id
                 cluster_id = self.find_cluster_id(self.skeletons[skeleton_index].id)
-                if len(intention.actions) == 0 or intention.actions[-1] != cluster_id:
+                if cluster_id is not None and (len(intention.actions) == 0 or intention.actions[-1] != cluster_id):
                     intention.actions.append(cluster_id)
+                print(intention.actions)
             # Create the goal label from pathname
             intention.goal = self.goal_labels[offset_index]
             # Save the computed intention
@@ -586,5 +620,5 @@ class Learner:
     # Displays a global summary of the training process
     def summarize_training(self):
         self.training_result()  # Clusters and intentions
-        self.show_clustering()      # Graphical visualization of the clusters
+        #self.show_clustering()      # Graphical visualization of the clusters
         #self.plot_goal()            # Goals decompositions todo re-enable

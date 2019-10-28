@@ -18,6 +18,7 @@ class HighLevel(StopThread):
         self.tq = transition_queue
         self.observations = []
         self.library = {}       # Used in the sequence matcher
+        self.mapping = None
 
     # From an input training set, in dictionry form, computes the parameter matrixes and generates an HSMM
     # Ratio is the percetage that observed duration should be the taught one
@@ -39,6 +40,7 @@ class HighLevel(StopThread):
         n = len(self.state_names)               # Number of goals
         max_size = len(max(data, key=len))      # Max length of data sequences
         obs = list(set([item for sublist in data for item in sublist]))     # List of possible observations
+        self.mapping = dict(zip(obs, np.arange(len(obs))))  # Maps the L-level symbols to a [0,n] range H-level symbols
         # HSMM parameter computation
         #   1) Transitions
         transitions = np.full((n, n), 1.0/n)    # Uniform probability distribution
@@ -52,16 +54,29 @@ class HighLevel(StopThread):
         for entry in data:
             # Counts the frequency of every observation in this training example
             for digit in obs:
-                emissions[i][digit] = entry.count(digit) / len(entry)
+                emissions[i][self.observation_to_map(digit)] = entry.count(digit) / len(entry)
             i += 1
         # HSMM model generation
         self.hsmm = MultinomialHSMM(emissions, durations, transitions, startprob=None, support_cutoff=100)
         # Library generation
 
+    def observation_to_map(self, observation):
+        if not isinstance(observation, list):
+            observation = [observation]
+        try:
+            map_list = []
+            for x in observation:
+                map_list.append(self.mapping[x])
+            return map_list
+        except KeyError:
+            return None
+
+    def map_to_observation(self, map):
+        return next((key for key, value in self.mapping.items() if value == map), None)
 
     # Infers a sequence of observations to the most probable states that generated them
     def predict(self, observations):
-        return self.hsmm.decode(observations)
+        return self.hsmm.decode(self.observation_to_map(observations))
 
     # Generates a sequence of goal labels that correspond to the predictions
     def decode(self, observations):
