@@ -60,9 +60,9 @@ class Learner:
             self.update_knowledge()
         self.generate_dataset()
         self.do_pca()
-        score = self.generate_clusters()
-        print("[DEBUG] Clustering silhouette score: " + str(score))
+        sep, dim = self.generate_clusters()
         self.generate_intentions()
+        self.postprocess_intenentions(sep, dim-1)
         if self.persist:
             self.save(savedir)
 
@@ -265,7 +265,7 @@ class Learner:
                 Learner.latest_index += 1
                 level = 2
             else:
-                id = i+1
+                id = i
                 level = 1
             cl = copy.deepcopy(cluster_lists)   # I need to make a copy because of the id fixation that will come after
             c = Cluster(centers[i], cl[i], id, colors[i], level)
@@ -292,6 +292,33 @@ class Learner:
             self.generate_clusters()
             return
         final_clusters.extend(clusters)
+        '''
+        # Display
+        self.clusters = final_clusters
+        # Create image plot
+        for skeleton in self.skeletons:
+            im = OffsetImage(skeleton.img, zoom=0.38)
+            coordinates = self.dataset2d[skeleton.id]
+            cluster_id = self.find_cluster_id(skeleton.id, limit=True)
+            # Sanity check
+            if cluster_id is None:
+                print("Error! Couldn't find cluster in which a skeleton belongs")
+                raise RuntimeError
+            else:
+                color = self.clusters[cluster_id].color
+                ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
+                ab.set_zorder(2)
+                self.ax.add_artist(ab)
+        # Plots the clusters centroids
+        for cluster in self.clusters:
+            x = cluster.centroid[0]
+            y = cluster.centroid[1]
+            text = self.ax.text(x, y + 0.015, cluster.id, fontsize=40, color='white')
+            # Adds the black border around the text
+            text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'), path_effects.Normal()])
+            plt.scatter(x, y, zorder=3, marker='o', s=10, c=cluster.color, edgecolors='black', linewidths='2')
+        plt.show()
+        '''
         # Define the cluster which contains the neutral posture (the largest one)
         other_clusters = clusters.copy()
         neutral_cluster = max(other_clusters, key=lambda x: len(x.skeleton_ids))
@@ -316,12 +343,8 @@ class Learner:
                 im = OffsetImage(skeleton.img, zoom=0.38)
                 coordinate_index = parent_cluster.skeleton_ids.index(skeleton.id)  # Data and skeletons are not aligned, I must fetch the id specifically
                 coordinates = data2d[coordinate_index]
-                #cluster_id = self.find_cluster_id(skeleton.id)
-                # Sanity check
-                #if cluster_id is None:
-                #    print("Error! Couldn't find cluster in which a skeleton belongs")
-                #    raise RuntimeError
-                #else:
+                cluster_id = self.find_cluster_id(skeleton.id)
+                #if cluster_id is not None:
                 color = 'red' if skeleton.id in secondary_clusters[0].skeleton_ids else 'blue'
                 ab = AnnotationBbox(im, coordinates, bboxprops=dict(edgecolor=color))
                 ab.set_zorder(2)
@@ -341,9 +364,8 @@ class Learner:
         for i in range(0, len(final_clusters)):
             final_clusters[i].color = colors[i]
         self.clusters = final_clusters
-        # generate plot and optionally display it
-        #self.ax = draw_clusters(self.dataset2d, cluster_lists, display_result=False)
-        #return score
+        # Returns the neutral cluster id and the number of non-parent clusters, to be used for post-processing
+        return neutral_cluster.id, len([cluster.id for cluster in final_clusters if cluster.descendants is None])
 
     # Fetches a specified cluster by id
     def find_cluster_by_id(self, id):
@@ -421,12 +443,55 @@ class Learner:
                 cluster_id = self.find_cluster_id(self.skeletons[skeleton_index].id)
                 if cluster_id is not None and (len(intention.actions) == 0 or intention.actions[-1] != cluster_id):
                     intention.actions.append(cluster_id)
-                print(intention.actions)
             # Create the goal label from pathname
             intention.goal = self.goal_labels[offset_index]
             # Save the computed intention
             self.intentions.append(intention)
             previous = self.offsets[offset_index]
+
+    # Corrects the intentions to account for more structure and noise in the training data
+    def postprocess_intenentions(self, separator, dim):
+        intentions = self.intentions
+        matrix = []
+        label_order = None
+        for intention in intentions:
+            actions = intention.actions
+            size = len(actions)
+            idx_list = [idx + 1 for idx, val in enumerate(actions) if
+                        val == separator]  # Calculates the indexes offsets
+            res = [actions[i: j] for i, j in
+                   zip([0] + idx_list, idx_list + ([size] if idx_list[-1] != size else []))]  # Groups the elements
+            res = [[subelt for subelt in elt if subelt != separator] for elt in res]  # Removes the separator value
+            res = list(filter(None, res))  # Removes any empty lists
+            # Eliminates any irregular data (both value and index will be missing, making it useless
+            if len(res) != dim:
+                continue
+            else:
+                label = list(intention.goal)  # Tokenizes the label
+                label_order = np.sort(label)  # Redundant, but does its job
+                indexes = np.argsort(label)  # Outputs the indexes of the sorted array
+                ordered_values = []
+                for i in indexes:
+                    ordered_values.append(res[i])  # Rebuilds the array based on the ordered indexes
+                matrix.append(ordered_values)
+        # Count the values
+        counters = {'B': 0, 'G': 0, 'O': 0, 'R': 0}
+        transposed = np.transpose(matrix)  # Transposes the matrix, so that each row will repesent one letter
+        for i in range(len(transposed)):
+            row = transposed[i]
+            row = [item for sublist in row for item in sublist]  # Flattens the list
+            expected_value = stat.mode(row)  # Selects the most common value in each row
+            letter = label_order[i]  # Retrieves the "letter" under review
+            counters[letter] = expected_value
+        # Compute the new, processed intentions as: [separator, value, separator, ... , value, separator]
+        for intention in intentions:
+            label = list(intention.goal)
+            new_action = [separator]
+            for letter in label:
+                new_action.append(counters[letter])
+                new_action.append(separator)
+            intention.actions = new_action
+        self.intentions = intentions
 
     # Generates a list containing the intentions in dictionary form (training dataset)
     def make_training_dataset(self):
