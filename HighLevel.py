@@ -30,6 +30,7 @@ class HighLevel(StopThread):
         # Split data from input dictionary in separate lists
         data = []
         for entry in training_data:
+            #entry['data'] = entry['data'][:-2]
             self.state_names.append(entry['label'])
             data.append(entry['data'])
             # Thresholds are computed as rounded <var>% of duration of that state, minimum 1
@@ -58,7 +59,6 @@ class HighLevel(StopThread):
             i += 1
         # HSMM model generation
         self.hsmm = MultinomialHSMM(emissions, durations, transitions, startprob=None, support_cutoff=100)
-        # Library generation
 
     def observation_to_map(self, observation):
         if not isinstance(observation, list):
@@ -76,7 +76,8 @@ class HighLevel(StopThread):
 
     # Infers a sequence of observations to the most probable states that generated them
     def predict(self, observations):
-        return self.hsmm.decode(self.observation_to_map(observations))
+        mapped_observations = self.observation_to_map(observations)
+        return self.hsmm.decode(mapped_observations)
 
     # Generates a sequence of goal labels that correspond to the predictions
     def decode(self, observations):
@@ -145,7 +146,7 @@ class HighLevel(StopThread):
                 print("[DEBUG] Goal \'" + str(goal) + "\' was inferred. Trying to predict future emissions...")
                 # Try to predict future emissions
                 future_observations = self.predict_future_observations(self.observations)
-                if future_observations is not None: # If a prediction was possible, try a new inference
+                if future_observations is not None:     # If a prediction was possible, try a new inference
                     self.observations.extend(future_observations)
                     goal2 = self.incremental_decode()
                     if goal2 is not None and goal2 != goal:

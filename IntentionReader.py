@@ -32,8 +32,6 @@ class IntentionReader:
         assert isinstance(environment, Learner), "Environment must be an instance of Learner class"
         self.env = environment
 
-    # 
-
     # Observes the scene and reads intentions
     def observe(self, fps=2):
         assert self.env is not None, "Environment must be initialized"

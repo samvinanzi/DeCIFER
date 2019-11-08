@@ -62,7 +62,7 @@ class Learner:
         self.do_pca()
         sep, dim = self.generate_clusters()
         self.generate_intentions()
-        self.postprocess_intenentions(sep, dim-1)
+        self.postprocess_intentions(sep, dim - 1)
         if self.persist:
             self.save(savedir)
 
@@ -450,7 +450,7 @@ class Learner:
             previous = self.offsets[offset_index]
 
     # Corrects the intentions to account for more structure and noise in the training data
-    def postprocess_intenentions(self, separator, dim):
+    def postprocess_intentions(self, separator, dim):
         intentions = self.intentions
         matrix = []
         label_order = None

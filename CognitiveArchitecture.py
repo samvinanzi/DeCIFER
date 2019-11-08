@@ -5,7 +5,8 @@ Initializes the low- and high-level modules and connects them to each other.
 """
 
 from LowLevel import LowLevel
-from HighLevel import HighLevel
+#from HighLevel import HighLevel
+from BayesHighLevel import HighLevel
 from TransitionQueue import TransitionQueue
 from robots.robot_selector import robot
 from Logger import Logger
@@ -22,6 +23,9 @@ class CognitiveArchitecture:
     # Performs the training and learning
     def train(self, reload=False):
         training_data = self.lowlevel.reload_training() if reload else self.lowlevel.do_training()
+        # Strips the value '0' (neutral cluster pose)   # todo make it dynamic
+        for entry in training_data:
+            entry['data'] = [element for element in entry['data'] if element != 0]
         # Uses the training data to build the high-level model parameters
         self.highlevel.build_model(training_data)
         # Starts the high-level background thread to use it when needed
