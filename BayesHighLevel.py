@@ -168,6 +168,9 @@ class HighLevel(StopThread):
             # Retrieves a new observation, when available
             observation = self.tq.get()  # Blocking call: if IntentionReading is not producing, HighLevel will pend here
             print("[DEBUG][HL] Read " + str(observation) + " from transition queue")
+            if observation == 0:    # todo do not hard-code
+                print("[DEBUG] Dropping neutral value " + str(observation))     # Drops the neutral value
+                continue
             self.observations.append(observation)
             # Builds up the evidence it has, as: [intention (None), observation1, ... , observationN]
             evidence = [None]

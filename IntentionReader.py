@@ -47,13 +47,13 @@ class IntentionReader:
                 skeleton = robot.look_for_skeleton(image_containers, i)
                 self.skeletons.append(skeleton)
                 # Converts that skeleton to a feature array and memorizes it
-                feature = skeleton.as_feature()
+                feature = skeleton.as_feature(add_extra=False)
                 # It is a single sample, so reshape it
                 feature = feature.reshape(1, -1)
                 if self.dataset is None:
                     self.dataset = feature
                 else:
-                    self.dataset = np.vstack((self.dataset, skeleton.as_feature()))     # todo does this do anything?
+                    self.dataset = np.vstack((self.dataset, skeleton.as_feature(add_extra=False)))  # todo does this do anything?
                 # Finds the closest cluster in L1 space. If it's a parent node, then do L2 clustering on that L2Node
                 l1_clusters = self.env.get_cluster_set(1)
                 # Applies PCA

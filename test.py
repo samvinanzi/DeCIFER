@@ -19,6 +19,7 @@ from Skeleton import Skeleton
 from ExtraFeatures import ExtraFeatures
 import statistics as stat
 import tokenize
+from L2Node import L2Node
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -172,13 +173,25 @@ cog.lowlevel.train.summarize_training()
 print("Done")
 '''
 
-
+'''
 cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
 cog.train(reload=True)
 cog.lowlevel.train.summarize_training()
-cog.read_intention(simulation=True)
-print("Done")
-
+l2nodes = []
+clusters = cog.lowlevel.train.clusters
+skeleton_ids_1 = clusters[1]
+data1 = [skeleton.as_feature(only_extra=True) for skeleton in cog.lowlevel.train.skeletons if skeleton.id in skeleton_ids_1.skeleton_ids]
+l2n1 = L2Node(1, data1)
+l2nodes.append(l2n1)
+skeleton_ids_2 = clusters[2]
+data2 = [skeleton.as_feature(only_extra=True) for skeleton in cog.lowlevel.train.skeletons if skeleton.id in skeleton_ids_2.skeleton_ids]
+l2n2 = L2Node(2, data1)
+l2nodes.append(l2n2)
+pickle.dump(l2nodes, open("objects/" + "l2nodes.p", "wb"))
+print("Done!")
+#cog.read_intention(simulation=True)
+#print("Done")
+'''
 
 '''
 #path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/frames/0.jpg"
@@ -199,11 +212,12 @@ for name in names:
     f = s.as_feature()
     print(f)
 '''
-'''
+
+
 game = BlockBuildingGame2(debug=True)
 game.reload_training()
 game.playing_phase()
-'''
+
 
 '''
 import itertools

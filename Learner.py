@@ -94,6 +94,7 @@ class Learner:
         pickle.dump(self.intentions, open(savedir + "intentions.p", "wb"))
         pickle.dump(self.goal_labels, open(savedir + "goal_labels.p", "wb"))
         pickle.dump(self.pca, open(savedir + "pca.p", "wb"))
+        pickle.dump(self.l2nodes, open(savedir + "l2nodes.p", "wb"))
         pickle.dump(self.ax, open(savedir + "ax.p", "wb"))
         print("[DEBUG] model saved in " + str(savedir))
 
@@ -111,6 +112,7 @@ class Learner:
         self.intentions = pickle.load(open(path + "intentions.p", "rb"))
         self.goal_labels = pickle.load(open(path + "goal_labels.p", "rb"))
         self.pca = pickle.load(open(path + "pca.p", "rb"))
+        self.l2nodes = pickle.load(open(path + "l2nodes.p", "rb"))
         self.ax = pickle.load(open(path + "ax.p", "rb"))
 
     # --- METHODS --- #
@@ -231,6 +233,7 @@ class Learner:
 
     # XMeans clustering
     # Parameter base_id is used in second-level clustering to determine the proper nomenclature of the clusters
+    # todo This methos uses self.dataset2d... is it correct?
     def xmeans_clustering(self, data, use_BIC=True, base_id=None, removal_threshold=3, reference=None):
         # initial centers with K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
