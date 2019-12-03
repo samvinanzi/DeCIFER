@@ -194,13 +194,24 @@ print("Done!")
 '''
 
 '''
-#path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/frames/0.jpg"
-path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/000.jpg"
-img = cv2.imread(path)
-s = Skeleton(img, 0)
-f = s.as_feature()
-print(f)
+# Testing on the position 'G'
+path_train_G = '/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/trainingset/GORB/101.jpg'
+path_train_R = '/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/trainingset/GORB/109.jpg'
+path_test = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/G.jpg"
+img_train_G = cv2.imread(path_train_G)
+img_train_R = cv2.imread(path_train_R)
+img_test = cv2.imread(path_test)
+s_train_G = Skeleton(img_train_G, 0)
+s_train_R = Skeleton(img_train_R, 1)
+s_test = Skeleton(img_test, 2)
+print("Training sample: G")
+print(s_train_G.as_feature(only_extra=True))
+print("Testing sample (missclassified as R)")
+print(s_test.as_feature(only_extra=True))
+print("Training sample: R")
+print(s_train_R.as_feature(only_extra=True))
 '''
+
 '''
 basepath = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/{}.jpg"
 names = ["000", "B", "G", "O", "R"]
@@ -213,11 +224,11 @@ for name in names:
     print(f)
 '''
 
-
+'''
 game = BlockBuildingGame2(debug=True)
 game.reload_training()
 game.playing_phase()
-
+'''
 
 '''
 import itertools
@@ -228,3 +239,15 @@ for i in itertools.product([0,1],repeat=4):
     cog.lowlevel.train.summarize_training()
 print("Done")
 '''
+
+
+cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+cog.train(reload=True)
+
+# Cluster correction
+cog.lowlevel.train.clusters[5].centroid = [1.4346541941018343, -0.1571525604543636]
+cog.lowlevel.train.clusters[6].centroid = [1.0692279685864146, -0.02116144880533045]
+
+cog.lowlevel.train.summarize_training()
+cog.read_intention(simulation=False)
+

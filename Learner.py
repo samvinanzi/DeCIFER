@@ -185,8 +185,9 @@ class Learner:
         # Continue with normal learning phases
         self.generate_dataset()
         self.do_pca()
-        self.generate_clusters()
+        sep, dim = self.generate_clusters()
         self.generate_intentions()
+        self.postprocess_intentions(sep, dim - 1)
         if self.persist:
             self.save(savedir)
 
@@ -236,9 +237,9 @@ class Learner:
     # todo This methos uses self.dataset2d... is it correct?
     def xmeans_clustering(self, data, use_BIC=True, base_id=None, removal_threshold=3, reference=None):
         # initial centers with K-Means++ method
-        initial_centers = kmeans_plusplus_initializer(list(self.dataset2d), Learner.PCA_DIMENSIONS).initialize()
+        initial_centers = kmeans_plusplus_initializer(list(data), Learner.PCA_DIMENSIONS).initialize()
         # Dynamical search of the best hyperparameter
-        tolerance = self.dynamical_hyperparameter_search(self.dataset2d, initial_centers)
+        tolerance = self.dynamical_hyperparameter_search(data, initial_centers)
         if use_BIC:
             criterion = pyc.splitting_type.BAYESIAN_INFORMATION_CRITERION
         else:
@@ -251,7 +252,7 @@ class Learner:
         centers = xmeans_instance.get_centers()
         cluster_lists = xmeans_instance.get_clusters()
         # Calculate Silhouette score for each point and averages it
-        score = np.average(silhouette(list(self.dataset2d), cluster_lists).process().get_score())
+        score = np.average(silhouette(list(data), cluster_lists).process().get_score())
         clusters = []
         colors = Cluster.get_colors(len(centers))
         # Outlier removal: simply discard clusters which are too small
@@ -334,7 +335,7 @@ class Learner:
             # Store this subdataset as an L2Node to be able to perform L2 inference during the intention reading phase
             new_l2_node = L2Node(parent_cluster.id, data)
             self.l2nodes.append(new_l2_node)
-            data2d = new_l2_node.dataset2d
+            data2d = new_l2_node.dataset2d      # Uses the PCA data
             # Perform clustering
             print("L2 clustering")
             secondary_clusters, _, pyc_data = self.xmeans_clustering(data2d, use_BIC=False, base_id=parent_cluster.id, reference=parent_cluster.skeleton_ids)
@@ -377,6 +378,20 @@ class Learner:
                 return cluster
         return None
 
+    # Returns all the skeletons associated to a specified cluster
+    def skeletons_by_cluster(self, cluster_id):
+        assert isinstance(cluster_id, int), "A valid cluster_id must be specified."
+        cluster = self.find_cluster_by_id(cluster_id)
+        if cluster is None:
+            print("[ERROR] No cluster with specified id: " + str(cluster_id))
+            return None
+        else:
+            id_list = cluster.skeleton_ids
+            output = []
+            for id in id_list:
+                output.append(self.skeletons[id])
+            return output
+
     # Gets a cluster set or subset.
     def get_cluster_set(self, level, parent_id=None):
         assert level > 0, "Invalid value for level parameter"
@@ -407,7 +422,7 @@ class Learner:
 
     # Finds the closest centroid to a new skeletal sample (already in 2D coordinates).
     # A list of clusters in which to search for must be provided.
-    def find_closest_centroid(self, sample2d, cluster_set):
+    def find_closest_centroid_old(self, sample2d, cluster_set):
         min_distance = float("inf")
         closest_cluster = None
         for cluster in cluster_set:
@@ -416,6 +431,16 @@ class Learner:
                 min_distance = dist
                 closest_cluster = cluster
         return closest_cluster
+
+    # Alternative version, using sklearn
+    def find_closest_centroid(self, sample2d, cluster_set):
+        from sklearn.neighbors.nearest_centroid import NearestCentroid
+        X = np.array([cluster.centroid for cluster in cluster_set])
+        y = np.array([cluster.id for cluster in cluster_set])
+        clf = NearestCentroid()
+        clf.fit(X, y)
+        closest = clf.predict([[sample2d[0], sample2d[1]]])
+        return self.find_cluster_by_id(closest)
 
     # Retrieves an L2Node with specified id, or None if not found
     def get_l2node(self, id):
@@ -495,6 +520,7 @@ class Learner:
                 new_action.append(separator)
             intention.actions = new_action
         self.intentions = intentions
+        print("[DEBUG] Intentions post-processed succesfully.")
 
     # Generates a list containing the intentions in dictionary form (training dataset)
     def make_training_dataset(self):

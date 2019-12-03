@@ -44,5 +44,6 @@ class LowLevel:
         else:
             if self.offline:
                 self.test.offline_observe()
+                #self.test.observe()
             else:
                 self.test.observe()

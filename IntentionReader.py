@@ -41,10 +41,36 @@ class IntentionReader:
         goal_found = False
         blank_detections = 0
         self.log.new_trial()
+        # todo debug remove
+        #skeleton_files = ["000", "B", "O", "R", "G"]
+        #skeleton_files = ["RBGO/120", "RBGO/121", "RBGO/122", "RBGO/123"]   # Examples of cluster 6
+        #skeleton_files = self.env.skeletons_by_cluster(4)
+        #coordinates = []
+        #i=0
         while not goal_found:
             try:
                 # Tries to extract a skeleton
                 skeleton = robot.look_for_skeleton(image_containers, i)
+
+                # todo remove
+                '''
+                #name = skeleton_files[i]
+                try:
+                    name = skeleton_files[i]
+                except IndexError:
+                    arr = np.asarray(coordinates)
+                    length = arr.shape[0]
+                    sum_x = np.sum(arr[:, 0])
+                    sum_y = np.sum(arr[:, 1])
+                    centroid = sum_x / length, sum_y / length
+                    print("FREE REAL CENTROID: " + str(centroid))
+                    quit(-1)
+                #path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/" + name + ".jpg"
+                #skeleton = Skeleton(cv2.imread(path), i)
+                #skeleton = Skeleton(name.origin, name.id)
+                i += 1
+                '''
+
                 self.skeletons.append(skeleton)
                 # Converts that skeleton to a feature array and memorizes it
                 feature = skeleton.as_feature(add_extra=False)
@@ -73,10 +99,13 @@ class IntentionReader:
                     l2_dataset2d, l2_pca = l2_node.get_data()
                     # Applies PCA
                     l2_feature2d = l2_pca.transform(l2_feature).tolist()
+                    #coordinates.append(*l2_feature2d)    # todo remove
                     l2_cluster = self.env.find_closest_centroid(*l2_feature2d, l2_clusters)
                     cluster_id = l2_cluster.id
                 else:
                     cluster_id = cluster.id
+                #print("File: " + str(name) + ", classification: " + str(cluster_id))
+                #continue
                 if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
                     blank_detections = 0    # reset
                     self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
