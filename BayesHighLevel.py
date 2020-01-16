@@ -152,9 +152,9 @@ class HighLevel(StopThread):
                 goal = key
                 tie = False
         if not tie:
-            return goal
+            return goal, round(score, 2)
         else:
-            return None
+            return None, None
 
     def run(self):
         self.stop_flag = False  # This is done to avoid unexpected behavior
@@ -182,10 +182,10 @@ class HighLevel(StopThread):
                 finally:
                     evidence.append(observation)
             # Decodes all the observations acquired
-            goal = self.predict_state(evidence)
-            if goal is not None:
+            goal, confidence = self.predict_state(evidence)
+            if goal is not None and confidence > 0.5:
                 # As soon as it is able to infer a goal, write it down
-                print("[DEBUG] Current inferred goal is: " + str(goal))
+                print("[DEBUG] Current inferred goal is: " + str(goal) + " (" + str(confidence) + ")")
                 self.tq.write_goal_name(goal)
                 # Reset all observations done until that point
                 self.observations = []

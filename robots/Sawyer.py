@@ -219,6 +219,7 @@ class Sawyer(AbstractRobot):
         img = self.get_camera_frame()
         # Analyzes and validates it
         sequence, validity = obs.process(img)
+        sequence = sequence.reverse()   # Reverses it to account for robot perspective on the table
         print("[DEBUG] Detected block sequence: " + str(sequence))
         return validity
 

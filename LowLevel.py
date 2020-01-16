@@ -37,13 +37,14 @@ class LowLevel:
         return self.train.make_training_dataset()
 
     # Performs skeleton extraction, clustering and transition analysis
-    def do_testing(self, simulation=False):
+    def do_testing(self, simulation=False, debug=False):
         self.test.set_environment(self.train)
-        if simulation:
+        if debug:
+            self.test.debug_observe()
+        elif simulation:
             self.test.observer_simulator()
         else:
             if self.offline:
                 self.test.offline_observe()
-                #self.test.observe()
             else:
                 self.test.observe()

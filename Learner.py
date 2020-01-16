@@ -28,6 +28,7 @@ import subprocess
 import time
 from L2Node import L2Node
 import copy
+from sklearn.neighbors.nearest_centroid import NearestCentroid
 
 
 class Learner:
@@ -234,7 +235,6 @@ class Learner:
 
     # XMeans clustering
     # Parameter base_id is used in second-level clustering to determine the proper nomenclature of the clusters
-    # todo This methos uses self.dataset2d... is it correct?
     def xmeans_clustering(self, data, use_BIC=True, base_id=None, removal_threshold=3, reference=None):
         # initial centers with K-Means++ method
         initial_centers = kmeans_plusplus_initializer(list(data), Learner.PCA_DIMENSIONS).initialize()
@@ -432,9 +432,8 @@ class Learner:
                 closest_cluster = cluster
         return closest_cluster
 
-    # Alternative version, using sklearn
+    # Alternative version of the above, using sklearn
     def find_closest_centroid(self, sample2d, cluster_set):
-        from sklearn.neighbors.nearest_centroid import NearestCentroid
         X = np.array([cluster.centroid for cluster in cluster_set])
         y = np.array([cluster.id for cluster in cluster_set])
         clf = NearestCentroid()

@@ -20,6 +20,7 @@ from ExtraFeatures import ExtraFeatures
 import statistics as stat
 import tokenize
 from L2Node import L2Node
+from Buffer import Buffer
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
@@ -36,35 +37,11 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
-# Load the test skeletons
-def load_test_skeletons():
-    dict = {}
-    lst = []
-    path = "objects/test/skeleton/"
-    files = [f for f in os.listdir(path) if f.endswith("p")]
-    for file in files:
-        filename, file_extension = os.path.splitext(file)
-        skeleton = pickle.load(open(path + file, "rb"))
-        dict[filename] = skeleton
-        lst.append(skeleton)
-    return dict, lst
-
-def output():
-    import yarp
-
-    yp = yarp.Network()
-    yp.init()
-
-    port_in = yarp.BufferedPortBottle()
-    port_in.open("/reader")
-    if yp.connect("/lbpExtract/blobs:o", "/reader"):
-        print("Connected")
-    while True:
-        time.sleep(1)
-        btl = port_in.read(False)
-        print(btl)
-    #print("Disconnected")
-    #port_in.close()
+buff = Buffer(None)
+tokens = [0, 0, 6, 5, 6, 0]
+for token in tokens:
+    buff.insert(token)
+quit(-1)
 
 
 #img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0001.jpg")
@@ -224,11 +201,14 @@ for name in names:
     print(f)
 '''
 
-'''
+
 game = BlockBuildingGame2(debug=True)
 game.reload_training()
+# Cluster correction
+game.cognition.lowlevel.train.clusters[5].centroid = [1.4346541941018343, -0.1571525604543636]
+game.cognition.lowlevel.train.clusters[6].centroid = [1.0692279685864146, -0.02116144880533045]
 game.playing_phase()
-'''
+#game.debug_human()
 
 '''
 import itertools
@@ -240,7 +220,7 @@ for i in itertools.product([0,1],repeat=4):
 print("Done")
 '''
 
-
+'''
 cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
 cog.train(reload=True)
 
@@ -250,4 +230,4 @@ cog.lowlevel.train.clusters[6].centroid = [1.0692279685864146, -0.02116144880533
 
 cog.lowlevel.train.summarize_training()
 cog.read_intention(simulation=False)
-
+'''

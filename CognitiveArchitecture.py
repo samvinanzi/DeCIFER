@@ -43,9 +43,9 @@ class CognitiveArchitecture:
         self.highlevel.start()
 
     # Performs the intention reading (testing)
-    def read_intention(self, simulation=False):
+    def read_intention(self, simulation=False, debug=False):
         # LowLevel decodes skeletons and tries to extract cluster transitions
-        self.lowlevel.do_testing(simulation)
+        self.lowlevel.do_testing(simulation, debug)
         # The above process ends when a goal has been inferred. Retrieve it
         current_goal = self.tq.get_goal_name()
         self.tq.write_goal_name(None)   # Reset

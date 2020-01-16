@@ -14,6 +14,7 @@ import time
 import subprocess
 import cv2
 import os
+from Buffer import Buffer
 
 
 class IntentionReader:
@@ -32,21 +33,58 @@ class IntentionReader:
         assert isinstance(environment, Learner), "Environment must be an instance of Learner class"
         self.env = environment
 
-    # Observes the scene and reads intentions
-    def observe(self, fps=2):
+    # Observes the human and shows each classification
+    def debug_observe(self):
         assert self.env is not None, "Environment must be initialized"
         image_containers = robot.get_image_containers()
+        print("[DEBUG] " + self.__class__.__name__ + " is observing (debug mode)")
+        i = 0
+        blank_detections = 0
+        while True:
+            try:
+                # Tries to extract a skeleton
+                skeleton = robot.look_for_skeleton(image_containers, i)
+                # Converts that skeleton to a feature array and memorizes it
+                feature = skeleton.as_feature(add_extra=False)
+                # It is a single sample, so reshape it
+                feature = feature.reshape(1, -1)
+                # Finds the closest cluster in L1 space. If it's a parent node, then do L2 clustering on that L2Node
+                l1_clusters = self.env.get_cluster_set(1)
+                # Applies PCA
+                feature2d = self.env.pca.transform(feature).tolist()
+                # Cluster and examine the transitions
+                cluster = self.env.find_closest_centroid(*feature2d, l1_clusters)  # Unpacking of the list
+                if cluster.is_parent():
+                    # L2 search
+                    l2_feature = skeleton.as_feature(add_extra=True, only_extra=True)
+                    l2_feature = l2_feature.reshape(1, -1)
+                    l2_clusters = self.env.get_cluster_set(2, cluster.id)
+                    l2_node = self.env.get_l2node(cluster.id)
+                    l2_dataset2d, l2_pca = l2_node.get_data()
+                    # Applies PCA
+                    l2_feature2d = l2_pca.transform(l2_feature).tolist()
+                    l2_cluster = self.env.find_closest_centroid(*l2_feature2d, l2_clusters)
+                    cluster_id = l2_cluster.id
+                else:
+                    cluster_id = cluster.id
+                robot.say("Classification: " + str(cluster_id))
+                # continue
+                i += 1
+            except NoHumansFoundException:
+                pass
+            finally:
+                time.sleep(2)
+
+    # Observes the scene and reads intentions
+    def observe(self, fps=4):
+        assert self.env is not None, "Environment must be initialized"
+        image_containers = robot.get_image_containers()
+        buff = Buffer(debug=True)
         print("[DEBUG] " + self.__class__.__name__ + " is observing")
         i = 0
         goal_found = False
         blank_detections = 0
         self.log.new_trial()
-        # todo debug remove
-        #skeleton_files = ["000", "B", "O", "R", "G"]
-        #skeleton_files = ["RBGO/120", "RBGO/121", "RBGO/122", "RBGO/123"]   # Examples of cluster 6
-        #skeleton_files = self.env.skeletons_by_cluster(4)
-        #coordinates = []
-        #i=0
         while not goal_found:
             try:
                 # Tries to extract a skeleton
@@ -104,13 +142,38 @@ class IntentionReader:
                     cluster_id = l2_cluster.id
                 else:
                     cluster_id = cluster.id
-                #print("File: " + str(name) + ", classification: " + str(cluster_id))
-                #continue
+                # todo debug remove
+                cv2.imwrite("img/debug/frame" + str(skeleton.id) + "_cluster" + str(cluster_id) + ".jpg", skeleton.img)
+                # Buffers the cluster ids
+                tokens = buff.insert(cluster_id)
+                # If there is something to pass to the HL, deal with it (this will skip if tokens is None)
+                for token in tokens:
+                    if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
+                        blank_detections = 0  # reset
+                        self.intention.actions.append(cluster_id)  # No goal must be specified in testing phase
+                        # Notify the new transition to the upper level
+                        self.tq.put(token)
+                        # Increase the elapsed time in the logger
+                        self.log.update_latest_time()
+                        print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
+                    else:
+                        blank_detections += 1
+                        # This avoids infinite loops. If N skeletons are detected with no transition, the system
+                        # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
+                        if blank_detections >= 10:
+                            print("[DEBUG] Unable to infer intentions, sorry :(")
+                            self.tq.write_goal_name("failure")
+                            blank_detections = 0
+
+                '''
+                Old version: todo delete!
+                
                 if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
                     blank_detections = 0    # reset
                     self.intention.actions.append(cluster_id)       # No goal must be specified in testing phase
                     # Notify the new transition to the upper level
-                    self.tq.put(cluster_id)
+                    #self.tq.put(cluster_id)
+                    buff.insert(cluster_id)
                     # Increase the elapsed time in the logger
                     self.log.update_latest_time()
                     print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
@@ -118,10 +181,12 @@ class IntentionReader:
                     blank_detections += 1
                     # This avoids infinite loops. If N skeletons are detected with no clust transition, then the system
                     # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
-                    if blank_detections >= 20:
+                    if blank_detections >= 10:
                         print("[DEBUG] Unable to infer intentions, sorry :(")
                         self.tq.write_goal_name("failure")
                         blank_detections = 0
+                '''
+
                 i += 1
             except NoHumansFoundException:
                 pass
@@ -133,6 +198,8 @@ class IntentionReader:
                     self.log.update_latest_goal(goal_name)
                 elif robot.__class__.__name__ != "Sawyer":  # Sawyer doesn't need other waiting times
                     time.sleep(1 / fps)
+                else:
+                    time.sleep(.25)     # Sawyer sleeping time
         print("[DEBUG] " + self.__class__.__name__ + " stopped observing")
 
     # Offline, dataset-based observation
