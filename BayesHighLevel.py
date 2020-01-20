@@ -182,8 +182,11 @@ class HighLevel(StopThread):
                 finally:
                     evidence.append(observation)
             # Decodes all the observations acquired
+            print(evidence) # todo delete
             goal, confidence = self.predict_state(evidence)
-            if goal is not None and confidence > 0.5:
+            # Makes a guess when confident or when already 3 symbols out of 4 have been produced. This avoids being
+            # stuck with poor predictions and at least tries a guess.
+            if goal is not None and (confidence > 0.5 or evidence[3] is not None):
                 # As soon as it is able to infer a goal, write it down
                 print("[DEBUG] Current inferred goal is: " + str(goal) + " (" + str(confidence) + ")")
                 self.tq.write_goal_name(goal)

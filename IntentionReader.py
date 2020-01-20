@@ -146,24 +146,27 @@ class IntentionReader:
                 cv2.imwrite("img/debug/frame" + str(skeleton.id) + "_cluster" + str(cluster_id) + ".jpg", skeleton.img)
                 # Buffers the cluster ids
                 tokens = buff.insert(cluster_id)
+                print("BUFFER CONTENTS: " + str(buff.buffer))
                 # If there is something to pass to the HL, deal with it (this will skip if tokens is None)
-                for token in tokens:
-                    if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
-                        blank_detections = 0  # reset
-                        self.intention.actions.append(cluster_id)  # No goal must be specified in testing phase
-                        # Notify the new transition to the upper level
-                        self.tq.put(token)
-                        # Increase the elapsed time in the logger
-                        self.log.update_latest_time()
-                        print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
-                    else:
-                        blank_detections += 1
-                        # This avoids infinite loops. If N skeletons are detected with no transition, the system
-                        # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
-                        if blank_detections >= 10:
-                            print("[DEBUG] Unable to infer intentions, sorry :(")
-                            self.tq.write_goal_name("failure")
-                            blank_detections = 0
+                if tokens:
+                    for token in tokens:
+                        if len(self.intention.actions) == 0 or self.intention.actions[-1] != token:
+                            blank_detections = 0  # reset
+                            self.intention.actions.append(token)  # No goal must be specified in testing phase
+                            # Notify the new transition to the upper level
+                            self.tq.put(token)
+                            # Increase the elapsed time in the logger
+                            self.log.update_latest_time()
+                            print("[DEBUG][IR] Wrote " + str(token) + " to transition queue")
+                            time.sleep(.2)  # Gives HL time to fetch the data from TQ and detect a new event3
+                        else:
+                            blank_detections += 1
+                            # This avoids infinite loops. If N skeletons are detected with no transition, the system
+                            # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
+                            if blank_detections >= 20:
+                                print("[DEBUG] Unable to infer intentions, sorry :(")
+                                self.tq.write_goal_name("failure")
+                                blank_detections = 0
 
                 '''
                 Old version: todo delete!

@@ -31,30 +31,39 @@ class Buffer:
         if token != 0:
             self.buffer.append(token)
             if self.debug:
-                print("[DEBUG] Adding " + str(token) + " to the buffer")
+                print("[DEBUG][B] Adding " + str(token) + " to the buffer")
         # Otherwise, evaluate the symbols contained in the buffer
         else:
             if self.debug:
-                print("[DEBUG] Termination symbol encountered")
+                print("[DEBUG][B] Termination symbol encountered")
             # Empty buffer, do nothing
             if len(self.buffer) == 0:
+                if self.debug:
+                    print("[DEBUG][B] Buffer is empty, continuing...")
                 pass
             # Buffer contains a single element: return it
             elif len(self.buffer) == 1:
-                self.output = self.buffer
+                self.output = [self.buffer.pop()]
             # Buffer contains a sequence of symbols. Evaluate them
             elif len(self.buffer) > 1:
                 # Do the symbols represent a NFT?
-                result = self.detect_nft()
+                nft = self.detect_nft()
                 # Yes, retrieve the "far" symbol (the one with the smaller id)
-                if result:
+                if nft:
+                    if self.debug:
+                        print("[DEBUG][B] NFT detected.")
                     self.output = [min(self.buffer)]
+                    del self.buffer[:]
                 # No, retrieve all the unique symbols
                 else:
+                    if self.debug:
+                        print("[DEBUG][B] Multiple items but no NFT detected. Outputting them all.")
                     [self.output.append(item) for item in self.buffer if item not in self.output]
-                buffer = []     # Empty the buffer
+                    del self.buffer[:]
             if len(self.output) > 0:
                 # If the output contains something, return it
                 if self.debug:
                     print("[DEBUG] Buffer is returning values: " + str(self.output))
-                return self.output
+                output_copy = self.output.copy()
+                del self.output[:]
+                return output_copy
