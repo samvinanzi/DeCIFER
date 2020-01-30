@@ -37,11 +37,74 @@ cog.set_datapath(datapath)
 cog.process(reload=False)
 """
 
+"""
 buff = Buffer(None)
 tokens = [0, 0, 6, 5, 6, 0]
 for token in tokens:
     buff.insert(token)
-quit(-1)
+"""
+
+
+def inspection():
+    def calculate_centroid(data):
+        arr = np.asarray(data)
+        length = arr.shape[0]
+        sum_x = np.sum(arr[:, 0])
+        sum_y = np.sum(arr[:, 1])
+        centroid = sum_x / length, sum_y / length
+        return centroid
+
+    cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+    cog.train(reload=True)
+    # Cluster correction
+    cog.lowlevel.train.clusters[5].centroid = [1.4346541941018343, -0.1571525604543636]
+    cog.lowlevel.train.clusters[6].centroid = [1.0692279685864146, -0.02116144880533045]
+    # Retrieves the subcluster skeletons
+    c5 = cog.lowlevel.train.skeletons_by_cluster(5)
+    c6 = cog.lowlevel.train.skeletons_by_cluster(6)
+    '''
+    print("CLUSTER 5")
+    for skeleton in c5:
+        print(skeleton.id)
+        skeleton.display_fast()
+    print("CLUSTER 6")
+    '''
+    for skeleton in c6:
+        print(skeleton.id)
+        skeleton.display_fast()
+
+    # Get the skeletons which have to be moved
+    skeletons_5_to_6 = [cog.lowlevel.train.get_skeleton_by_id(62)]
+    skeletons_6_to_5 = [cog.lowlevel.train.get_skeleton_by_id(90), cog.lowlevel.train.get_skeleton_by_id(133)]
+    # Copy the skeletons to the respective new groups
+    c5.extend(skeletons_6_to_5)
+    c6.extend(skeletons_5_to_6)
+    # Delete the skeletons from the old group
+    for skeleton in c5:
+        if skeleton.id == 62:
+            c5.remove(skeleton)
+    for skeleton in c6:
+        if skeleton.id == 90 or skeleton.id == 133:
+            c6.remove(skeleton)
+    # Compute the data sets
+    data5 = [skeleton.as_feature(only_extra=True) for skeleton in c5]
+    data6 = [skeleton.as_feature(only_extra=True) for skeleton in c6]
+    # Calculate PCA to obtain the 2d data though L2Nodes
+    node_5 = L2Node(5, data5)
+    data5_2d = node_5.dataset2d
+    node_6 = L2Node(5, data6)
+    data6_2d = node_6.dataset2d
+    # Calculate the new centroids
+    centroid5 = calculate_centroid(data5_2d)
+    centroid6 = calculate_centroid(data6_2d)
+    # Output
+    print("CENTROID 5: " + str(centroid5))
+    print("CENTROID 6: " + str(centroid6))
+    pass
+
+
+
+#inspection()
 
 
 #img = cv2.imread("/home/samuele/Research/datasets/block-building-game/test/castle-small/frame0001.jpg")
@@ -122,13 +185,6 @@ robot.say("End")
 
 
 '''
-obs = BlockObserver()
-img = cv2.imread("./img/blocks2/sawyer_valid.jpg")
-print(obs.process(img))
-#obs.display()
-'''
-
-'''
 # Training only
 bb = BlockBuildingGame2(debug=True, save=True)
 bb.training_phase()
@@ -144,8 +200,8 @@ for skeleton in cog.lowlevel.train.skeletons:
 '''
 
 '''
-cog = CognitiveArchitecture(debug=True, offline=True, persist=True)
-cog.train(reload=True)
+cog = CognitiveArchitecture(debug=True, offline=True, persist=False)
+cog.train(reload=False)
 cog.lowlevel.train.summarize_training()
 print("Done")
 '''
@@ -171,25 +227,6 @@ print("Done!")
 '''
 
 '''
-# Testing on the position 'G'
-path_train_G = '/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/trainingset/GORB/101.jpg'
-path_train_R = '/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/trainingset/GORB/109.jpg'
-path_test = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/G.jpg"
-img_train_G = cv2.imread(path_train_G)
-img_train_R = cv2.imread(path_train_R)
-img_test = cv2.imread(path_test)
-s_train_G = Skeleton(img_train_G, 0)
-s_train_R = Skeleton(img_train_R, 1)
-s_test = Skeleton(img_test, 2)
-print("Training sample: G")
-print(s_train_G.as_feature(only_extra=True))
-print("Testing sample (missclassified as R)")
-print(s_test.as_feature(only_extra=True))
-print("Training sample: R")
-print(s_train_R.as_feature(only_extra=True))
-'''
-
-'''
 basepath = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/{}.jpg"
 names = ["000", "B", "G", "O", "R"]
 for name in names:
@@ -201,23 +238,15 @@ for name in names:
     print(f)
 '''
 
-
+'''
 game = BlockBuildingGame2(debug=True)
 game.reload_training()
 # Cluster correction
 game.cognition.lowlevel.train.clusters[5].centroid = [1.4346541941018343, -0.1571525604543636]
 game.cognition.lowlevel.train.clusters[6].centroid = [1.0692279685864146, -0.02116144880533045]
 game.playing_phase()
+game.end()
 #game.debug_human()
-
-'''
-import itertools
-for i in itertools.product([0,1],repeat=4):
-    print("ANGLES " + str(i[0]) + " ROLL " + str(i[1]) + " PITCH " + str(i[2]) + str(" YAW " + str(i[3])))
-    cog = CognitiveArchitecture(i, debug=True, offline=True, persist=False)
-    cog.train(reload=False)
-    cog.lowlevel.train.summarize_training()
-print("Done")
 '''
 
 '''
@@ -231,3 +260,5 @@ cog.lowlevel.train.clusters[6].centroid = [1.0692279685864146, -0.02116144880533
 cog.lowlevel.train.summarize_training()
 cog.read_intention(simulation=False)
 '''
+
+robot.action_display("eyes")

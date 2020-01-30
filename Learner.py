@@ -439,6 +439,8 @@ class Learner:
         clf = NearestCentroid()
         clf.fit(X, y)
         closest = clf.predict([[sample2d[0], sample2d[1]]])
+        if self.debug:
+            print("[DEBUG][CLOSEST CENTROID]Data point: " + str(sample2d))
         return self.find_cluster_by_id(closest)
 
     # Retrieves an L2Node with specified id, or None if not found
@@ -520,6 +522,13 @@ class Learner:
             intention.actions = new_action
         self.intentions = intentions
         print("[DEBUG] Intentions post-processed succesfully.")
+
+    # Fetches a skeleton based on its numerical id
+    def get_skeleton_by_id(self, id):
+        for skeleton in self.skeletons:
+            if skeleton.id == id:
+                return skeleton
+        return None
 
     # Generates a list containing the intentions in dictionary form (training dataset)
     def make_training_dataset(self):

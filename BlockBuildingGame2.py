@@ -78,6 +78,11 @@ class BlockBuildingGame2:
             robot.command_list = robot.command_list[0:-8]     # Truncates the automated response sequence
         robot.say("Ok, done!")
 
+    # Debug mode
+    def debug_human(self):
+        robot.say("Ready to start debugging!")
+        self.cognition.read_intention(debug=True)
+
     # Robot and human partner will play the game cooperatively
     def playing_phase(self, point=False):
         turn_number = 1

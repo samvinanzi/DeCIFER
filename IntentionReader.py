@@ -93,7 +93,7 @@ class IntentionReader:
                 # todo remove
                 '''
                 #name = skeleton_files[i]
-                try:
+                try: 
                     name = skeleton_files[i]
                 except IndexError:
                     arr = np.asarray(coordinates)
@@ -137,7 +137,6 @@ class IntentionReader:
                     l2_dataset2d, l2_pca = l2_node.get_data()
                     # Applies PCA
                     l2_feature2d = l2_pca.transform(l2_feature).tolist()
-                    #coordinates.append(*l2_feature2d)    # todo remove
                     l2_cluster = self.env.find_closest_centroid(*l2_feature2d, l2_clusters)
                     cluster_id = l2_cluster.id
                 else:
