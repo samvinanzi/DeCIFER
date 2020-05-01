@@ -28,7 +28,7 @@ import subprocess
 import time
 from L2Node import L2Node
 import copy
-from sklearn.neighbors.nearest_centroid import NearestCentroid
+from sklearn.neighbors import NearestCentroid
 
 
 class Learner:
@@ -289,12 +289,13 @@ class Learner:
         final_clusters = []
         # Perform xmeans clustering on the sole skeletal data
         print("L1 clustering")
-        clusters, _, _ = self.xmeans_clustering(self.dataset2d, use_BIC=True)       # L1 clustering
+        clusters, score, _ = self.xmeans_clustering(self.dataset2d, use_BIC=True)       # L1 clustering
         # todo debug... remove
         if len(clusters) != 3:
             print("[DEBUG] Re-clustering...")
             self.generate_clusters()
             return
+        print("L1 score: " + str(score))
         final_clusters.extend(clusters)
         '''
         # Display
@@ -338,7 +339,8 @@ class Learner:
             data2d = new_l2_node.dataset2d      # Uses the PCA data
             # Perform clustering
             print("L2 clustering")
-            secondary_clusters, _, pyc_data = self.xmeans_clustering(data2d, use_BIC=False, base_id=parent_cluster.id, reference=parent_cluster.skeleton_ids)
+            secondary_clusters, score, pyc_data = self.xmeans_clustering(data2d, use_BIC=False, base_id=parent_cluster.id, reference=parent_cluster.skeleton_ids)
+            print("L2 score: " + str(score))
             final_clusters.extend(secondary_clusters)
             parent_cluster.descendants = secondary_clusters
             self.ax = draw_clusters(data2d, pyc_data[1], display_result=False)
@@ -560,7 +562,7 @@ class Learner:
         return output
 
     # Updates the knowledge base with a new goal
-    # If the name of the goal is already know, replaces the previous training received
+    # If the name of the goal is already known, replaces the previous training received
     def update_knowledge(self):
         # Fetch the last id of the dataset
         last_id = max([skeleton.id for skeleton in self.skeletons])

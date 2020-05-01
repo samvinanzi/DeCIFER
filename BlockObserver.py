@@ -8,6 +8,7 @@ Block detection and analysis.
 import cv2
 import numpy as np
 import re
+from colorfilters import HSVFilter
 
 
 class BlockObserver:
@@ -23,34 +24,39 @@ class BlockObserver:
                 np.array([120, 250, 255], np.uint8)
             ],
             'orange': [
-                np.array([5, 130, 200], np.uint8),
+                np.array([12, 130, 235], np.uint8),
                 np.array([25, 255, 255], np.uint8)
             ],
             'red': [
                 np.array([0, 100, 111], np.uint8),
-                np.array([4, 255, 255], np.uint8)
+                np.array([3, 255, 255], np.uint8)
             ],
             'green': [
-                np.array([36, 25, 25], np.uint8),
+                np.array([36, 70, 25], np.uint8),
                 np.array([70, 255, 255], np.uint8)
             ]
         }
 
     # Executes all the chain of computations
+    # Returns: (list: ordered colors, string: label, bool: validity)
     def process(self, img):
         self.img = img
         self.crop()
-        sequence = self.detect_sequence()
+        sequence, label = self.detect_sequence()
         validity = self.validate_sequence()
-        return sequence, validity
+        return sequence, label, validity
 
     # Crops the input image to observe only the building area
-    def crop(self):
+    def crop(self, debug=False):
         roi = self.img[280:332, 355:461]        # y1:y2, x1:x2
+        roi = cv2.resize(roi, (roi.shape[1]*5, roi.shape[0]*5)) # zoom (for visual inspection)
         self.img = roi
+        if debug:
+            cv2.imshow("Cropped ROI", self.img)
+            cv2.waitKey(0)
 
     # Tries to find the colored cubes and analyses their positions
-    def detect_sequence(self, dilate=False, erode=True, blur=False, kernel_size=5):
+    def detect_sequence(self, dilate=False, erode=True, blur=False, kernel_size=3, debug=False):
         assert self.img is not None, "Invalid operation. Invoke process() first"
         img = self.img  # Safe copy
         # converts frame to HSV
@@ -68,8 +74,9 @@ class BlockObserver:
                 mask = cv2.GaussianBlur(mask, (5, 5), 0)
             mask_dict[color] = mask
             # Debug: displays the binary mask for the specific colors
-            #cv2.imshow(color + " mask", cv2.bitwise_and(img, img, mask=mask))
-            #cv2.waitKey(0)
+            if debug:
+                cv2.imshow(color + " mask", cv2.bitwise_and(img, img, mask=mask))
+                cv2.waitKey(0)
         # Finds the centroids
         centroids = {}
         for color, mask in mask_dict.items():
@@ -94,13 +101,15 @@ class BlockObserver:
         self.img_result = img
         # Sort the centroids to determine the color sequence
         sequence = [x[0].upper() for x in sorted(centroids.items(), key=lambda item: item[1])]
+        # Reverts the sequence
+        sequence.reverse()
         self.sequence = sequence
         # Converts the list of strings in a string code (e.g. 'BORG')
         label = ""
         for element in self.sequence:
             label += element[0]
         self.label = label
-        return sequence
+        return sequence, label
 
     # Verifies if the cubes are aligned in a valid sequence.
     def validate_sequence(self):
@@ -117,3 +126,12 @@ class BlockObserver:
         cv2.imshow("Processed image", self.img_result)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+    # Debug: manual visual HSV filtering
+    def hsv_filtering(self, img):
+        self.img = img
+        self.crop()
+        window = HSVFilter(self.img)
+        print("Press Q or ESC to close the window and print details.")
+        window.show()
+        print("Image filtered in HSV between {" + str(window.lowerb) + "} and {" + str(window.upperb) + "}.")

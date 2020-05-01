@@ -41,7 +41,7 @@ class BlockBuildingGame2:
         self.fixed_goal = fixed_goal  # Is the experiment in fixed or mutable goal configuration?
         robot.action_home()
         robot.action_look(self.coordinates["center"])
-        #robot.say("Welcome to the intention reading experiment. We will start very soon.")
+        robot.say("Welcome to the intention reading experiment. We will start very soon.")
         time.sleep(2)
 
     # Main execution of the experiment
@@ -83,6 +83,7 @@ class BlockBuildingGame2:
         robot.say("Ready to start debugging!")
         self.cognition.read_intention(debug=True)
 
+    """
     # Robot and human partner will play the game cooperatively
     def playing_phase(self, point=False):
         turn_number = 1
@@ -122,7 +123,131 @@ class BlockBuildingGame2:
             else:
                 robot.say("Ok, go!")
                 turn_number += 1
+    """
 
+    # Robot and human will play the trust-aware game
+    def playing_phase_trust(self, point=False):
+        turn_number = 1
+        robot.say("Time to play! Feel free to start.")
+        while True:
+            if robot.__class__.__name__ == "Sawyer":
+                robot.action_display("eyes")
+            goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
+            # Acting, based on the intention read
+            if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
+                continue
+            elif goal == "failure":
+                robot.say("I'm sorry, I can't understand what you are doing. I can't help you.")
+                # This case is not managed because it represents an error (e.g. human standing still too long)
+            else:
+                # If not unknown, perform an action
+                robot.say("We are building a " + goal)
+                priori_trust = self.bbn.is_informant_trustable()  # A priori trust estimation (PROACTIVE)
+                self.collaborate_with_trust(goal, priori_trust, point)
+                # The robot will now evaluate the construction
+                user_contruction, correct = robot.evaluate_construction(goal)
+                self.update_trust(correct)  # Trust update, based on the outcome
+                if not correct:
+                    posteriori_trust = self.bbn.is_informant_trustable()  # A posteriori trust estimation (REACTIVE)
+                    if posteriori_trust:
+                        # Give the user the option to teach a new goal
+                        self.ask_for_update()
+                    else:
+                        # Explain the error
+                        robot.say("We were building a " + goal + " but you built: " + user_contruction)
+                # Asks the partner if to continue the game (only if task is not unknown)
+                robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
+                if self.debug:
+                    response = robot.wait_and_listen_dummy()
+                else:
+                    response = robot.wait_and_listen()
+                if response != "yes":
+                    break
+                else:
+                    robot.say("Ok, go!")
+                    turn_number += 1
+
+    # Proactive collaboration. If the user is trusted the robot provides the blocks, otherwise it also places them
+    def collaborate_with_trust(self, goal, priori_trust, point=False):
+        # Determines the next blocks to be collected
+        collected_blocks = robot.count_blocks()
+        remaining_blocks = self.goals[goal][collected_blocks:]
+        if priori_trust:
+            # Pass the blocks to the user
+            for block in remaining_blocks:
+                self.interact_with_single_block(block, grasp=not point)
+        else:
+            # Positions the blocks in place
+            for block in remaining_blocks:
+                self.collect_and_place(block)
+
+    # Updates the trust in the user with two symmetrical positive or negative example
+    def update_trust(self, correctness):
+        assert isinstance(correctness, bool), "Correctness argument must be boolean"
+        if correctness:
+            new_evidence = Episode([0, 0, 0, 0])
+        else:
+            new_evidence = Episode([0, 0, 0, 1])
+        self.bbn.update_belief(new_evidence)  # updates belief with correct or wrong episode
+        self.bbn.update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated too
+
+    # Collects a block from the table and places it in the correct order
+    def collect_and_place(self, block):
+        coordinates = robot.block_coordinates[block]
+        robot.action_take(coordinates)
+        # todo: place on the building area
+        time.sleep(1)
+        robot.action_home()
+
+    # Plays, but without trust evaluations. If demo is True, it skips the listening
+    def playing_phase_notrust(self, point=False, demo=False):
+        turn_number = 1
+        robot.say("Time to play! Feel free to start.")
+        while True:
+            if robot.__class__.__name__ == "Sawyer":
+                robot.action_display("eyes")
+            goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
+            # Acting, based on the intention read
+            if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
+                continue
+            elif goal == "failure":
+                robot.say("I'm sorry, I cannot understand what you are doing.")
+            else:
+                # If not unknown, perform an action
+                robot.say("We are building a " + goal)
+                self.collaborate(goal, point)
+            # Asks the partner if to continue the game (only if task is not unknown)
+            robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
+            if self.debug:
+                response = robot.wait_and_listen_dummy()
+            else:
+                response = robot.wait_and_listen()
+            if response != "yes":
+                break
+            else:
+                time.sleep(1)
+                robot.say("Ok, go!")
+                turn_number += 1
+
+    # Plays a demo. The robot will recognize a predefined sequence of intentions
+    def play_demo_notrust(self):
+        intentions = ["BGOR", "OGBR", "GBRO", "RBGO"]
+        turn_number = 1
+        robot.say("Time to play! Feel free to start.")
+        for intention in intentions:
+            robot.action_display("eyes")
+            time.sleep(5)
+            robot.say("We are building a " + intention)
+            self.collaborate(intention)
+            robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
+            time.sleep(1)
+            if turn_number < 4:
+                robot.say("Ok, go!")
+                turn_number += 1
+            else:
+                break
+
+    '''
     # Determines if the building was constructed correctly and updates the robot's belief
     # Returns true or false based on the evaluation
     def evaluate_construction(self, goal):
@@ -130,11 +255,11 @@ class BlockBuildingGame2:
         if correctness:
             new_evidence = Episode([0, 0, 0, 0])
         else:
-            new_evidence = Episode([1, 1, 1, 1])
+            new_evidence = Episode([1, 1, 1, 0])
         self.bbn.update_belief(new_evidence)  # updates belief with correct or wrong episode
         self.bbn.update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated too
         return correctness
-        # todo => if construction == self.constructions[goal]:  # compares it to the target one
+    '''
 
     # Gives advice to an untrustable informant
     def give_advice(self, goal):
@@ -156,8 +281,10 @@ class BlockBuildingGame2:
         coordinates = robot.block_coordinates[color]
         if grasp:
             robot.action_take(coordinates)
+            robot.action_give()
         else:
             robot.action_point(coordinates)
+        time.sleep(1)
         robot.action_home()
 
     # Ask the partner if he or she desires to update the knowledge base of the robot

@@ -131,6 +131,9 @@ class Sawyer(AbstractRobot):
     def action_midpose(self):
         self.request_action("midpose")
 
+    def action_midpose_high(self):
+        self.request_action("midpose_high")
+
     def action_ping(self):
         tic = time.time()
         self.request_action("ping")
@@ -218,16 +221,15 @@ class Sawyer(AbstractRobot):
         # Retrieves a camera image
         img = self.get_camera_frame()
         # Analyzes and validates it
-        sequence, validity = obs.process(img)
-        sequence = sequence.reverse()   # Reverses it to account for robot perspective on the table
-        print("[DEBUG] Detected block sequence: " + str(sequence))
-        return validity
+        sequence, label, validity = obs.process(img)
+        print("[DEBUG] Detected block sequence: " + str(label))
+        return label, validity
 
     # Counts the blocks visible on the table
     def count_blocks(self):
         obs = BlockObserver()
         img = self.get_camera_frame()
-        sequence, _ = obs.process(img)
+        sequence, _, _ = obs.process(img)
         return len(sequence)
 
     def search_for_object(self):
