@@ -11,6 +11,7 @@ from TransitionQueue import TransitionQueue
 from robots.robot_selector import robot
 from Logger import Logger
 import time
+from Trust import Trust
 
 
 class CognitiveArchitecture:
@@ -19,6 +20,7 @@ class CognitiveArchitecture:
         self.log = Logger()
         self.lowlevel = LowLevel(self.tq, self.log, debug, offline, persist)
         self.highlevel = HighLevel(self.tq)
+        self.trust = Trust()
 
     # Performs the training and learning
     def train(self, reload=False):

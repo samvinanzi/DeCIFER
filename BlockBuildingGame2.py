@@ -14,6 +14,7 @@ import time
 from robots.robot_selector import robot
 from belief.episode import Episode
 from belief.bayesianNetwork import BeliefNetwork
+from belief.face_vision import FaceVision
 
 HELPER_CSV = "belief/datasets/examples/helper.csv"
 TRICKER_CSV = "belief/datasets/examples/tricker.csv"
@@ -23,10 +24,7 @@ class BlockBuildingGame2:
     def __init__(self, debug=False, save=False, fixed_goal=True, naive_trust=True):
         self.cognition = CognitiveArchitecture(debug=debug, persist=save)
         self.coordinates = robot.coordinates
-        if naive_trust:
-            self.bbn = BeliefNetwork("partner", HELPER_CSV)
-        else:
-            self.bbn = BeliefNetwork("partner", TRICKER_CSV)
+        FaceVision.prepare_workspace()
         self.goals = {
             "BROG": [],
             "BGOR": [],
@@ -47,7 +45,7 @@ class BlockBuildingGame2:
     # Main execution of the experiment
     def execute(self):
         if self.training_phase():
-            self.playing_phase()
+            self.playing_phase_notrust()    #todo change in trusted version
         else:
             robot.say("I'm sorry, something went wrong. Shall we try again?")
         self.end()
@@ -58,8 +56,11 @@ class BlockBuildingGame2:
         self.cognition.terminate()      # Stops running threads, closes YARP ports, prints the recorded data log
 
     # Trains the robot on the current rules of the game
-    def training_phase(self):
+    def training_phase(self, trust=True):
         robot.say("Show me the rules of the game, I will learn them so that we can play together.")
+        if trust:
+            # If it's a trust-aware experiment, initialize the trust on the trainer
+            self.cognition.trust.learn_and_trust_trainer()
         self.cognition.train()
         # Checks that all the four goals have been learned
         for intention in self.cognition.lowlevel.train.intentions:
@@ -83,51 +84,11 @@ class BlockBuildingGame2:
         robot.say("Ready to start debugging!")
         self.cognition.read_intention(debug=True)
 
-    """
-    # Robot and human partner will play the game cooperatively
-    def playing_phase(self, point=False):
-        turn_number = 1
-        robot.say("Time to play! Feel free to start.")
-        while True:
-            if robot.__class__.__name__ == "Sawyer":
-                robot.action_display("eyes")
-            goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
-            # Acting, based on the intention read
-            if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
-                continue
-            elif goal == "failure":
-                robot.say("I'm sorry, I can't understand what you are doing. I can't help you.")
-                if not self.fixed_goal:
-                    robot.say("Do you wish to teach me something new?")
-                    self.ask_for_update()
-            else:
-                # If not unknown, perform an action
-                robot.say("We are building a " + goal)
-                trust = self.bbn.is_informant_trustable()  # A priori trust estimation
-                if not trust:
-                    self.give_advice(goal)
-                self.collaborate(goal, point)
-                correctness = self.evaluate_construction(goal)  # A posteriori trust update
-                if not self.fixed_goal and not trust and not correctness:
-                    robot.say("I've noticed that you keep performing actions I can't understand. \
-                                        Do you wish to train me on them?")
-                    self.ask_for_update()
-            # Asks the partner if to continue the game (only if task is not unknown)
-            robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
-            if self.debug:
-                response = robot.wait_and_listen_dummy()
-            else:
-                response = robot.wait_and_listen()
-            if response != "yes":
-                break
-            else:
-                robot.say("Ok, go!")
-                turn_number += 1
-    """
-
     # Robot and human will play the trust-aware game
     def playing_phase_trust(self, point=False):
         turn_number = 1
+        # The robot first recognizes the informer
+        informer_id = self.cognition.trust.face_recognition()
         robot.say("Time to play! Feel free to start.")
         while True:
             if robot.__class__.__name__ == "Sawyer":
@@ -142,13 +103,15 @@ class BlockBuildingGame2:
             else:
                 # If not unknown, perform an action
                 robot.say("We are building a " + goal)
-                priori_trust = self.bbn.is_informant_trustable()  # A priori trust estimation (PROACTIVE)
+                # A priori trust estimation (PROACTIVE)
+                priori_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
                 self.collaborate_with_trust(goal, priori_trust, point)
                 # The robot will now evaluate the construction
                 user_contruction, correct = robot.evaluate_construction(goal)
-                self.update_trust(correct)  # Trust update, based on the outcome
+                self.cognition.trust.update_trust(informer_id, correct)  # Trust update, based on the outcome
                 if not correct:
-                    posteriori_trust = self.bbn.is_informant_trustable()  # A posteriori trust estimation (REACTIVE)
+                    # A posteriori trust estimation (REACTIVE)
+                    posteriori_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
                     if posteriori_trust:
                         # Give the user the option to teach a new goal
                         self.ask_for_update()

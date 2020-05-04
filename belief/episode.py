@@ -43,3 +43,13 @@ class Episode:
             print("[ERROR] Episode.generate_symmetric: invalid raw data " + str(self.raw_data))
             quit(-1)
         return Episode(new_raw_data, self.time)
+
+    # Creates a new, positive episode
+    @staticmethod
+    def create_positive():
+        return Episode([1, 1, 1, 1])
+
+    # Creates a new, negative episode
+    @staticmethod
+    def create_negative():
+        return Episode([0, 0, 0, 1])
