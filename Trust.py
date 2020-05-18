@@ -156,16 +156,30 @@ class Trust:
 
     # --- TRUST MANIPULATION ---
 
-    # Updates the trust in the user with two symmetrical positive or negative examples
+    # Updates the trust in the user with two symmetrical positive or negative examples.
+    # Returns 0 is trust has not changed, +1 if it has become positive or -1 if it has become negative.
     def update_trust(self, informant_id, correctness):
         assert 0 <= informant_id < self.informants, "Invalid informant_id argument"
         assert isinstance(correctness, bool), "Correctness argument must be boolean"
+        old_trust = self.beliefs[informant_id].is_informant_trustable()
         if correctness:
             new_evidence = Episode.create_positive()
         else:
             new_evidence = Episode.create_negative()
         self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
         self.beliefs[informant_id].update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated
+        new_trust = self.beliefs[informant_id].is_informant_trustable()
+        # Evaluates if the trust has changed after the update to the belief network
+        if old_trust != new_trust:
+            if old_trust is False:
+                # Informant has gained trust
+                return 1
+            else:
+                # Informant has lost trust
+                return -1
+        else:
+            # Trust level has not changed
+            return 0
 
     # In the experiment, the trainer must be trusted automatically
     # Equivalent to a Vanderbilt familiarization phase with one trustable informant

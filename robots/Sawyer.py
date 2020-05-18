@@ -107,6 +107,9 @@ class Sawyer(AbstractRobot):
             img = self.request_action("camera_head")
         return np.asarray(img[0], dtype=np.uint8)
 
+    def action_position_block(self, block, position):
+        self.request_action("position", [block, position])
+
     def action_take(self, block):
         self.request_action("take", block)
 
@@ -123,7 +126,7 @@ class Sawyer(AbstractRobot):
         self.request_action("home")
 
     def action_look(self, coordinates):
-        self.request_action("look", coordinates)
+        self.request_action("look", coordinates)    # todo define it in SawyerProxy
 
     def action_drop(self, coordinates):
         self.request_action("drop", coordinates)

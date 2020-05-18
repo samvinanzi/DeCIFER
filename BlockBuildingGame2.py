@@ -102,22 +102,40 @@ class BlockBuildingGame2:
                 # This case is not managed because it represents an error (e.g. human standing still too long)
             else:
                 # If not unknown, perform an action
-                robot.say("We are building a " + goal)
+                robot.say("I think we are building: " + goal)
                 # A priori trust estimation (PROACTIVE)
                 priori_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
+                # Explainability
+                if priori_trust:
+                    robot.say("I feel like I can trust you. I'll help you build this construction.")
+                else:
+                    robot.say("I don't think I can trust you. I'll complete this for you.")
                 self.collaborate_with_trust(goal, priori_trust, point)
                 # The robot will now evaluate the construction
                 user_contruction, correct = robot.evaluate_construction(goal)
-                self.cognition.trust.update_trust(informer_id, correct)  # Trust update, based on the outcome
+                # Explainability
+                if correct:
+                    robot.say("The construction is a valid one.")
+                else:
+                    robot.say("This construction breaks the rules.")
+                delta_trust = self.cognition.trust.update_trust(informer_id, correct)  # Trust update, based on the outcome
+                # Explainability: notify the user if the trust evaluation has changed
+                if delta_trust == 1:
+                    # User has gained trust
+                    robot.say("You have proved yourself trustworthy.")
+                elif delta_trust == -1:
+                    # User has lost trust
+                    robot.say("I'm sorry, but I don't trust you anymore.")
                 if not correct:
                     # A posteriori trust estimation (REACTIVE)
                     posteriori_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
                     if posteriori_trust:
+                        robot.say("I can't recognize this structure, but I think you know what you are doing.")
                         # Give the user the option to teach a new goal
                         self.ask_for_update()
                     else:
                         # Explain the error
-                        robot.say("We were building a " + goal + " but you built: " + user_contruction)
+                        robot.say("We were building " + goal + " but you built " + user_contruction)
                 # Asks the partner if to continue the game (only if task is not unknown)
                 robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
                 if self.debug:
@@ -140,25 +158,17 @@ class BlockBuildingGame2:
             for block in remaining_blocks:
                 self.interact_with_single_block(block, grasp=not point)
         else:
-            # Positions the blocks in place
+            # Positions the blocks in place itself
             for block in remaining_blocks:
-                self.collect_and_place(block)
-
-    # Updates the trust in the user with two symmetrical positive or negative example
-    def update_trust(self, correctness):
-        assert isinstance(correctness, bool), "Correctness argument must be boolean"
-        if correctness:
-            new_evidence = Episode([0, 0, 0, 0])
-        else:
-            new_evidence = Episode([0, 0, 0, 1])
-        self.bbn.update_belief(new_evidence)  # updates belief with correct or wrong episode
-        self.bbn.update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated too
+                # Determine the position for that block (reversed for the robot) := [4] [3] [2] [1]
+                position = self.goals[goal].index(block) + 1
+                self.collect_and_place(block, position)
 
     # Collects a block from the table and places it in the correct order
-    def collect_and_place(self, block):
+    def collect_and_place(self, block, position):
         coordinates = robot.block_coordinates[block]
         robot.action_take(coordinates)
-        # todo: place on the building area
+        robot.action_position_block(block, position)
         time.sleep(1)
         robot.action_home()
 
@@ -210,20 +220,6 @@ class BlockBuildingGame2:
             else:
                 break
 
-    '''
-    # Determines if the building was constructed correctly and updates the robot's belief
-    # Returns true or false based on the evaluation
-    def evaluate_construction(self, goal):
-        correctness = robot.evaluate_construction()
-        if correctness:
-            new_evidence = Episode([0, 0, 0, 0])
-        else:
-            new_evidence = Episode([1, 1, 1, 0])
-        self.bbn.update_belief(new_evidence)  # updates belief with correct or wrong episode
-        self.bbn.update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated too
-        return correctness
-    '''
-
     # Gives advice to an untrustable informant
     def give_advice(self, goal):
         robot.say("I just want to be sure you remember the rules.")
@@ -252,10 +248,12 @@ class BlockBuildingGame2:
 
     # Ask the partner if he or she desires to update the knowledge base of the robot
     def ask_for_update(self):
+        robot.say("Do you want to teach me a new goal?")
         if self.debug:
             response = robot.wait_and_listen_dummy()
         else:
             response = robot.wait_and_listen()
         if response == "yes":
             self.cognition.update()  # Undergo a new training
+            robot.say("I have learned the new goal. Let's continue!")
         return True if response == "yes" else False
