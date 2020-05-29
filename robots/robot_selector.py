@@ -12,6 +12,7 @@ Currently implemented:
 
 from robots.Icub import iCub
 from robots.Sawyer import Sawyer
+from robots.SimulatedRobot import SimulatedRobot
 
 
 def get_robot(name):
@@ -22,6 +23,9 @@ def get_robot(name):
     elif robot_name == 'SAWYER':
         print("[DEBUG] Initializing a Sawyer robot...")
         return Sawyer()
+    elif robot_name == 'SIMULATED':
+        print("[DEBUG] Initializing a Simulated robot...")
+        return SimulatedRobot()
     else:
         print("[ERROR] get_robot: Invalid robot name input!")
         raise InvalidRobotException
@@ -35,4 +39,5 @@ class InvalidRobotException(Exception):
 # Change these lines to switch robot:
 
 #robot = get_robot('iCub')
-robot = get_robot('Sawyer')
+#robot = get_robot('Sawyer')
+robot = get_robot('Simulated')

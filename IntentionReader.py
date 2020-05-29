@@ -303,4 +303,4 @@ class IntentionReader:
             goal_name = self.tq.was_goal_inferred()
             if goal_name:
                 goal_found = True  # Exit condition
-        print("[DEBUG] OBSERVER SIMLATOR offline.")
+        print("[DEBUG] OBSERVER SIMULATOR offline.")

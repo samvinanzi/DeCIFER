@@ -277,6 +277,7 @@ for color in ["blue", "orange", "red", "green"]:
 
 #robot.action_home()
 
+"""
 from colorfilters import HSVFilter
 
 obs = BlockObserver()
@@ -294,3 +295,9 @@ img = cv2.imread(img_path)
 
 print(obs.process(img))
 #obs.display()
+"""
+
+game = BlockBuildingGame2(debug=True, save=False, simulation=True, trust=True)
+game.reload_training()
+game.playing_phase_trust()
+

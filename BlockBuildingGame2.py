@@ -15,14 +15,15 @@ from robots.robot_selector import robot
 from belief.episode import Episode
 from belief.bayesianNetwork import BeliefNetwork
 from belief.face_vision import FaceVision
+from BlockObserver import BlockObserver
 
 HELPER_CSV = "belief/datasets/examples/helper.csv"
 TRICKER_CSV = "belief/datasets/examples/tricker.csv"
 
 
 class BlockBuildingGame2:
-    def __init__(self, debug=False, save=False, fixed_goal=True, naive_trust=True):
-        self.cognition = CognitiveArchitecture(debug=debug, persist=save)
+    def __init__(self, debug=False, save=False, simulation=False, trust=False):
+        self.cognition = CognitiveArchitecture(debug=debug, persist=save, enable_trust=trust, simulation=simulation)
         self.coordinates = robot.coordinates
         FaceVision.prepare_workspace()
         self.goals = {
@@ -35,8 +36,11 @@ class BlockBuildingGame2:
             "RBGO": [],
             "ROGB": [],
         }
+        for goal in self.goals:
+            self.goals[goal] = list(goal)
         self.debug = debug
-        self.fixed_goal = fixed_goal  # Is the experiment in fixed or mutable goal configuration?
+        self.simulation = simulation
+        self.trust_enabled = trust
         robot.action_home()
         robot.action_look(self.coordinates["center"])
         robot.say("Welcome to the intention reading experiment. We will start very soon.")
@@ -44,10 +48,13 @@ class BlockBuildingGame2:
 
     # Main execution of the experiment
     def execute(self):
-        if self.training_phase():
-            self.playing_phase_notrust()    #todo change in trusted version
+        if self.training_phase():   # Checks that the training is completed successfully
+            if not self.trust_enabled:
+                self.playing_phase_notrust()
+            else:
+                self.playing_phase_trust()
         else:
-            robot.say("I'm sorry, something went wrong. Shall we try again?")
+            robot.say("I'm sorry, something went wrong during training. Shall we try again?")
         self.end()
 
     # Terminates the experiment
@@ -56,11 +63,8 @@ class BlockBuildingGame2:
         self.cognition.terminate()      # Stops running threads, closes YARP ports, prints the recorded data log
 
     # Trains the robot on the current rules of the game
-    def training_phase(self, trust=True):
+    def training_phase(self):
         robot.say("Show me the rules of the game, I will learn them so that we can play together.")
-        if trust:
-            # If it's a trust-aware experiment, initialize the trust on the trainer
-            self.cognition.trust.learn_and_trust_trainer()
         self.cognition.train()
         # Checks that all the four goals have been learned
         for intention in self.cognition.lowlevel.train.intentions:
@@ -88,12 +92,16 @@ class BlockBuildingGame2:
     def playing_phase_trust(self, point=False):
         turn_number = 1
         # The robot first recognizes the informer
-        informer_id = self.cognition.trust.face_recognition()
+        if not self.simulation:
+            informer_id = self.cognition.trust.face_recognition()
+        else:
+            informer_id = int(input("Informant ID (max " + str(self.cognition.trust.informants-1) + "): "))
         robot.say("Time to play! Feel free to start.")
         while True:
-            if robot.__class__.__name__ == "Sawyer":
+            if robot.__class__.__name__ == "Sawyer" and not self.simulation:
                 robot.action_display("eyes")
-            goal = self.cognition.read_intention()  # The robot will try to understand the goal in progress
+            # The robot will try to understand the goal in progress
+            goal = self.cognition.read_intention()
             # Acting, based on the intention read
             if goal == "unknown":  # If unknown, just wait until some prediction is made skipping all the rest
                 continue
@@ -104,7 +112,9 @@ class BlockBuildingGame2:
                 # If not unknown, perform an action
                 robot.say("I think we are building: " + goal)
                 # A priori trust estimation (PROACTIVE)
-                priori_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
+                priori_trust, reliability = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
+                if self.debug:
+                    print("[DEBUG] Informant " + str(informer_id) + " has reliability: " + str(reliability))
                 # Explainability
                 if priori_trust:
                     robot.say("I feel like I can trust you. I'll help you build this construction.")
@@ -112,13 +122,25 @@ class BlockBuildingGame2:
                     robot.say("I don't think I can trust you. I'll complete this for you.")
                 self.collaborate_with_trust(goal, priori_trust, point)
                 # The robot will now evaluate the construction
-                user_contruction, correct = robot.evaluate_construction(goal)
+                if not self.simulation:
+                    user_contruction, correct = robot.evaluate_construction(goal)
+                else:
+                    user_contruction = input('Enter user construction: ').upper()
+                    obs = BlockObserver()
+                    obs.label = user_contruction
+                    correct = obs.validate_sequence()
                 # Explainability
                 if correct:
-                    robot.say("The construction is a valid one.")
+                    phrase = "The construction is a valid one"
+                    if user_contruction == goal:
+                        phrase += " and I'm happy to have helped."
+                    else:
+                        phrase += ", but I misunderstood your intention. Sorry."
+                    robot.say(phrase)
                 else:
                     robot.say("This construction breaks the rules.")
-                delta_trust = self.cognition.trust.update_trust(informer_id, correct)  # Trust update, based on the outcome
+                # Trust update, based on the outcome
+                delta_trust = self.cognition.trust.update_trust(informer_id, correct)
                 # Explainability: notify the user if the trust evaluation has changed
                 if delta_trust == 1:
                     # User has gained trust
@@ -128,11 +150,14 @@ class BlockBuildingGame2:
                     robot.say("I'm sorry, but I don't trust you anymore.")
                 if not correct:
                     # A posteriori trust estimation (REACTIVE)
-                    posteriori_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
+                    posteriori_trust, reliability = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
                     if posteriori_trust:
                         robot.say("I can't recognize this structure, but I think you know what you are doing.")
                         # Give the user the option to teach a new goal
-                        self.ask_for_update()
+                        if not self.simulation:
+                            self.ask_for_update()
+                        else:
+                            pass # todo
                     else:
                         # Explain the error
                         robot.say("We were building " + goal + " but you built " + user_contruction)
@@ -156,13 +181,19 @@ class BlockBuildingGame2:
         if priori_trust:
             # Pass the blocks to the user
             for block in remaining_blocks:
-                self.interact_with_single_block(block, grasp=not point)
+                if not self.simulation:
+                    self.interact_with_single_block(block, grasp=not point)
+                else:
+                    print("Robot is passing block " + str(block) + " to the user.")
         else:
             # Positions the blocks in place itself
             for block in remaining_blocks:
                 # Determine the position for that block (reversed for the robot) := [4] [3] [2] [1]
                 position = self.goals[goal].index(block) + 1
-                self.collect_and_place(block, position)
+                if not self.simulation:
+                    self.collect_and_place(block, position)
+                else:
+                    print("Robot is positioning block " + str(block) + " in position " + str(position) + ".")
 
     # Collects a block from the table and places it in the correct order
     def collect_and_place(self, block, position):

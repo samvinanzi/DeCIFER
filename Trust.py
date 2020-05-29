@@ -145,7 +145,7 @@ class Trust:
         for belief in self.beliefs:
             belief.save()
 
-    # Loads the beliefs
+    # Loads the beliefs and updates the interal parameters
     def load_beliefs(self, path="datasets/"):
         # Resets previous beliefs
         self.beliefs = []
@@ -153,6 +153,8 @@ class Trust:
         while os.path.isfile(path + "Informer" + str(i) + ".csv"):
             self.beliefs.append(BeliefNetwork("Informer" + str(i), path + "Informer" + str(i) + ".csv"))
             i += 1
+        self.informants = i
+        self.load_time()
 
     # --- TRUST MANIPULATION ---
 
@@ -161,14 +163,16 @@ class Trust:
     def update_trust(self, informant_id, correctness):
         assert 0 <= informant_id < self.informants, "Invalid informant_id argument"
         assert isinstance(correctness, bool), "Correctness argument must be boolean"
-        old_trust = self.beliefs[informant_id].is_informant_trustable()
+        old_trust, old_reliability = self.beliefs[informant_id].is_informant_trustable()
         if correctness:
             new_evidence = Episode.create_positive()
         else:
             new_evidence = Episode.create_negative()
         self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
         self.beliefs[informant_id].update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated
-        new_trust = self.beliefs[informant_id].is_informant_trustable()
+        new_trust, new_reliability = self.beliefs[informant_id].is_informant_trustable()
+        print("[DEBUG] Trust for informant " + str(informant_id) + " changed from " + str(old_reliability) +
+              " to " + str(new_reliability))
         # Evaluates if the trust has changed after the update to the belief network
         if old_trust != new_trust:
             if old_trust is False:
@@ -185,5 +189,11 @@ class Trust:
     # Equivalent to a Vanderbilt familiarization phase with one trustable informant
     def learn_and_trust_trainer(self):
         self.acquire_examples(self.face_frames_captured, 0)
-        self.beliefs.append(BeliefNetwork("Informer 0", Episode.create_positive()))
+        self.beliefs.append(BeliefNetwork("Informer 0", "belief/datasets/examples/naive.csv"))
+        # todo set time equals to the max in the training
         self.face_learning()
+
+    # The simulation equivalent of the above function
+    def initialize_trusted_trainer(self):
+        self.beliefs.append(BeliefNetwork("Informer 0", "belief/datasets/examples/naive.csv"))
+        self.informants += 1

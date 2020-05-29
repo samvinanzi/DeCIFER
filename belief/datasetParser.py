@@ -40,7 +40,8 @@ class DatasetParser:
         elif isinstance(data, list):
             self.episode_dataset = data
         else:
-            print("[ERROR]. DatasetParser. Invalid data input: " + str(data))
+            print("[ERROR]. DatasetParser. Invalid data input: " + str(data) + " expected list, found " +
+                  str(type(data)))
             quit(-1)
 
     # Parses a dataset and sums each parameter's occurrence

@@ -15,16 +15,29 @@ from Trust import Trust
 
 
 class CognitiveArchitecture:
-    def __init__(self, debug=False, offline=False, persist=False):
+    def __init__(self, debug=False, offline=False, persist=False, enable_trust=False, simulation=False):
         self.tq = TransitionQueue()
         self.log = Logger()
         self.lowlevel = LowLevel(self.tq, self.log, debug, offline, persist)
         self.highlevel = HighLevel(self.tq)
         self.trust = Trust()
+        self.trust_enabled = enable_trust
+        self.simulation = simulation
 
     # Performs the training and learning
     def train(self, reload=False):
+        # Initializes TRUST
+        if self.trust_enabled:
+            if reload:
+                #self.trust.load_beliefs()   # Simply reloads... todo re-enable
+                self.trust.initialize_trusted_trainer() # todo quick simulation initialization, change?
+            elif not self.simulation:
+                self.trust.learn_and_trust_trainer()    # Recognizes trainee's face and trustes him/her
+            else:
+                self.trust.initialize_trusted_trainer()     # No face data is captured
+        # Initializes LOW-LEVEL
         training_data = self.lowlevel.reload_training() if reload else self.lowlevel.do_training()
+        # Initializes HIGH-LEVEL
         # Strips the value '0' (neutral cluster pose)   # todo make it dynamic
         for entry in training_data:
             entry['data'] = [element for element in entry['data'] if element != 0]
@@ -45,9 +58,9 @@ class CognitiveArchitecture:
         self.highlevel.start()
 
     # Performs the intention reading (testing)
-    def read_intention(self, simulation=False, debug=False):
+    def read_intention(self, debug=False):
         # LowLevel decodes skeletons and tries to extract cluster transitions
-        self.lowlevel.do_testing(simulation, debug)
+        self.lowlevel.do_testing(self.simulation, debug)
         # The above process ends when a goal has been inferred. Retrieve it
         current_goal = self.tq.get_goal_name()
         self.tq.write_goal_name(None)   # Reset
