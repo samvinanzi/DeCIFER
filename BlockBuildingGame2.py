@@ -152,7 +152,7 @@ class BlockBuildingGame2:
                     # A posteriori trust estimation (REACTIVE)
                     posteriori_trust, reliability = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
                     if posteriori_trust:
-                        robot.say("I can't recognize this structure, but I think you know what you are doing.")
+                        robot.say("I can't recognize this structure, but I trust you know what you are doing.")
                         # Give the user the option to teach a new goal
                         if not self.simulation:
                             self.ask_for_update()
@@ -160,7 +160,7 @@ class BlockBuildingGame2:
                             pass # todo
                     else:
                         # Explain the error
-                        robot.say("We were building " + goal + " but you built " + user_contruction)
+                        robot.say("We were building " + goal + ", but you built " + user_contruction + " instead.")
                 # Asks the partner if to continue the game (only if task is not unknown)
                 robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
                 if self.debug:
@@ -185,6 +185,7 @@ class BlockBuildingGame2:
                     self.interact_with_single_block(block, grasp=not point)
                 else:
                     print("Robot is passing block " + str(block) + " to the user.")
+                    time.sleep(1)
         else:
             # Positions the blocks in place itself
             for block in remaining_blocks:
@@ -194,6 +195,7 @@ class BlockBuildingGame2:
                     self.collect_and_place(block, position)
                 else:
                     print("Robot is positioning block " + str(block) + " in position " + str(position) + ".")
+                    time.sleep(1)
 
     # Collects a block from the table and places it in the correct order
     def collect_and_place(self, block, position):

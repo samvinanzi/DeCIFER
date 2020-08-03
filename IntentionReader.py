@@ -15,6 +15,7 @@ import subprocess
 import cv2
 import os
 from Buffer import Buffer
+from util.IntentionSampler import IntentionSampler
 
 
 class IntentionReader:
@@ -277,13 +278,21 @@ class IntentionReader:
         print("[DEBUG] " + self.__class__.__name__ + " stopped observing")
 
     # Observer simulator, accepts commands from the keyboard
-    def observer_simulator(self):
+    def observer_simulator(self, error_simulation=True):
         assert self.env is not None, "Environment must be initialized"
+        sampler = IntentionSampler()
         print("[DEBUG] OBSERVER SIMULATOR is online.")
         goal_found = False
         blank_detections = 0
         while not goal_found:
-            cluster_id = int(input('Enter observed cluster id: '))
+            if not error_simulation:
+                cluster_id = int(input('Enter observed cluster id: '))
+            else:
+                # This simulates the error rate of the real robot in the virtualized one
+                demonstrated_id = int(input('Enter demonstrated cluster id: '))
+                cluster_id = sampler.sample_block(demonstrated_id)
+                if cluster_id != demonstrated_id:
+                    print("[DEBUG] OBSERVATION ERROR! Robot interpreted " + str(demonstrated_id) + " as " + str(cluster_id))
             if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
                 blank_detections = 0  # reset
                 self.intention.actions.append(cluster_id)  # No goal must be specified in testing phase
@@ -303,4 +312,5 @@ class IntentionReader:
             goal_name = self.tq.was_goal_inferred()
             if goal_name:
                 goal_found = True  # Exit condition
+        self.intention = Intention()    # Reset todo correct also in the online version?
         print("[DEBUG] OBSERVER SIMULATOR offline.")
