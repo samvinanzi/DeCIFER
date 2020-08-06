@@ -8,7 +8,7 @@ experiment.
 from numpy.random import choice
 
 
-class IntentionSampler:
+class ObservationSampler:
     def __init__(self):
         # Blocks
         self.block_names = ['B', 'O', 'R', 'G']
@@ -34,8 +34,8 @@ class IntentionSampler:
         self.cluster_to_block = {
             3: 'B',
             4: 'O',
-            5: 'R',
-            6: 'G'
+            6: 'R',
+            5: 'G'
         }
 
     # Samples at the block level (uses cluster ids as inputs and outputs)

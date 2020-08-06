@@ -14,13 +14,14 @@ import os
 
 
 class Trust:
-    def __init__(self):
+    def __init__(self, logger):
         self.training_data = TrainingData()
         self.informants = 0
         self.beliefs = []
         self.time = None
         self.face_frames_captured = 10
         self.load_time()
+        self.log = logger  # Logger that keeps record of what happens, for data analysis purpose
 
     # --- FACE DETECTION AND RECOGNITION ---
 
@@ -160,7 +161,7 @@ class Trust:
 
     # Updates the trust in the user with two symmetrical positive or negative examples.
     # Returns 0 is trust has not changed, +1 if it has become positive or -1 if it has become negative.
-    def update_trust(self, informant_id, correctness):
+    def update_trust(self, informant_id, correctness, by_robot):
         assert 0 <= informant_id < self.informants, "Invalid informant_id argument"
         assert isinstance(correctness, bool), "Correctness argument must be boolean"
         old_trust, old_reliability = self.beliefs[informant_id].is_informant_trustable()
@@ -168,8 +169,14 @@ class Trust:
             new_evidence = Episode.create_positive()
         else:
             new_evidence = Episode.create_negative()
+        if old_reliability >= 0.5 and correctness or old_reliability <= -0.5 and not correctness:
+            return 0
         self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
         self.beliefs[informant_id].update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated
+        if not by_robot:
+            self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
+            self.beliefs[informant_id].update_belief(
+                new_evidence.generate_symmetric())  # symmetric episode is generated
         new_trust, new_reliability = self.beliefs[informant_id].is_informant_trustable()
         print("[DEBUG] Trust for informant " + str(informant_id) + " changed from " + str(old_reliability) +
               " to " + str(new_reliability))
@@ -197,3 +204,7 @@ class Trust:
     def initialize_trusted_trainer(self):
         self.beliefs.append(BeliefNetwork("Informer 0", "belief/datasets/examples/naive.csv"))
         self.informants += 1
+
+    # Updates the log
+    def update_log(self, trust):
+        self.log.update_latest_trust(trust)

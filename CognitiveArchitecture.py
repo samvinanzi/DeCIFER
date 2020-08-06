@@ -20,7 +20,7 @@ class CognitiveArchitecture:
         self.log = Logger()
         self.lowlevel = LowLevel(self.tq, self.log, debug, offline, persist)
         self.highlevel = HighLevel(self.tq)
-        self.trust = Trust()
+        self.trust = Trust(self.log)
         self.trust_enabled = enable_trust
         self.simulation = simulation
 
@@ -82,3 +82,7 @@ class CognitiveArchitecture:
         for item in observations:
             time.sleep(0.5)
             self.tq.put(item)
+
+    # Adds the outcome of an interaction in the logger
+    def record_outcome(self, success):
+        self.log.update_latest_success(success)

@@ -14,6 +14,8 @@ class Trial:
         self.goal_inferred = None
         self.time_elapsed = 0       # Number of transitions occoured before the prediction
         self.seconds = 0             # Time in seconds
+        self.trust = None          # Trust value for the informant
+        self.success = None
 
     def start(self):
         self.seconds = time.time()
@@ -25,13 +27,21 @@ class Trial:
         self.goal_inferred = goalname
         self.seconds = time.time() - self.seconds
 
+    def update_trust(self, trust):
+        self.trust = trust
+
+    def update_success(self, success):
+        self.success = success
+
     def __str__(self):
         return "Predicted \"" + self.goal_inferred + "\" after " + str(self.time_elapsed) + " observation" + \
-               ("s" if self.time_elapsed != 1 else "") + " (" + str(self.seconds) + " seconds);"
+               ("s" if self.time_elapsed != 1 else "") + " (" + str(self.seconds) + " seconds) [Trust: " + \
+               str(self.trust) + "]... " + ("success!" if self.success else "failure")
 
     # Returns a CSV-writable representation of the trial
     def csv_repr(self):
-        return self.goal_inferred + ";" + str(self.time_elapsed) + ";" + str(self.seconds) + ";"
+        return self.goal_inferred + ";" + str(self.time_elapsed) + ";" + str(self.seconds) + ";" + str(self.trust) +\
+               ";" + str(self.success) + ";"
 
 
 # Collector of trials, to evaluate the whole experiment
@@ -56,6 +66,18 @@ class Logger:
             print("[ERROR] No trials to update")
         else:
             self.trials[self.latest_index].update_goal(goalname)
+
+    def update_latest_trust(self, trust):
+        if self.latest_index is None:
+            print("[ERROR] No trials to update")
+        else:
+            self.trials[self.latest_index].update_trust(trust)
+
+    def update_latest_success(self, success):
+        if self.latest_index is None:
+            print("[ERROR] No trials to update")
+        else:
+            self.trials[self.latest_index].update_success(success)
 
     def print(self):
         now = datetime.datetime.now()       # Gets the current date and time

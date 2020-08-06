@@ -300,4 +300,5 @@ print(obs.process(img))
 game = BlockBuildingGame2(debug=True, save=False, simulation=True, trust=True)
 game.reload_training()
 game.playing_phase_trust()
+game.end()
 

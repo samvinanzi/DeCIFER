@@ -16,6 +16,7 @@ from belief.episode import Episode
 from belief.bayesianNetwork import BeliefNetwork
 from belief.face_vision import FaceVision
 from BlockObserver import BlockObserver
+from util.batch_simulator import sim
 
 HELPER_CSV = "belief/datasets/examples/helper.csv"
 TRICKER_CSV = "belief/datasets/examples/tricker.csv"
@@ -89,11 +90,16 @@ class BlockBuildingGame2:
         self.cognition.read_intention(debug=True)
 
     # Robot and human will play the trust-aware game
-    def playing_phase_trust(self, point=False):
+    # NOTE! Setting automatic to True launches the batch simulator!
+    def playing_phase_trust(self, point=False, automatic=True):
+        trust_values = []
+        correct_counter = 0 # counter
         turn_number = 1
         # The robot first recognizes the informer
         if not self.simulation:
             informer_id = self.cognition.trust.face_recognition()
+        elif automatic:
+            informer_id = 0
         else:
             informer_id = int(input("Informant ID (max " + str(self.cognition.trust.informants-1) + "): "))
         robot.say("Time to play! Feel free to start.")
@@ -122,13 +128,27 @@ class BlockBuildingGame2:
                     robot.say("I don't think I can trust you. I'll complete this for you.")
                 self.collaborate_with_trust(goal, priori_trust, point)
                 # The robot will now evaluate the construction
-                if not self.simulation:
-                    user_contruction, correct = robot.evaluate_construction(goal)
+                # Note that the robot might have built itself the construction because of a lack of trust
+                if not priori_trust:
+                    user_contruction = goal
+                    correct = True
+                    if automatic:
+                        sim.exposed_goals.pop(0)    # We still have to pop one goal out
                 else:
-                    user_contruction = input('Enter user construction: ').upper()
-                    obs = BlockObserver()
-                    obs.label = user_contruction
-                    correct = obs.validate_sequence()
+                    if not self.simulation:
+                        user_contruction, correct = robot.evaluate_construction(goal)
+                    else:
+                        if not automatic:
+                            user_contruction = input('Enter user construction: ').upper()
+                        else:
+                            user_contruction = sim.exposed_goals.pop(0)
+                            print(user_contruction)
+                        obs = BlockObserver()
+                        obs.label = user_contruction
+                        correct = obs.validate_sequence()
+                self.cognition.record_outcome(correct)
+                if correct:
+                    correct_counter += 1
                 # Explainability
                 if correct:
                     phrase = "The construction is a valid one"
@@ -140,7 +160,11 @@ class BlockBuildingGame2:
                 else:
                     robot.say("This construction breaks the rules.")
                 # Trust update, based on the outcome
-                delta_trust = self.cognition.trust.update_trust(informer_id, correct)
+                delta_trust = self.cognition.trust.update_trust(informer_id, correct, not priori_trust)
+                # Log the new values
+                _, new_trust = self.cognition.trust.beliefs[informer_id].is_informant_trustable()
+                self.cognition.trust.update_log(new_trust)
+                trust_values.append(new_trust)
                 # Explainability: notify the user if the trust evaluation has changed
                 if delta_trust == 1:
                     # User has gained trust
@@ -161,9 +185,13 @@ class BlockBuildingGame2:
                     else:
                         # Explain the error
                         robot.say("We were building " + goal + ", but you built " + user_contruction + " instead.")
+                #self.cognition.trust.update_log(reliability)
+                #trust_values.append(reliability)
                 # Asks the partner if to continue the game (only if task is not unknown)
                 robot.say("Do you wish to continue with turn number " + str(turn_number + 1) + "?")
-                if self.debug:
+                if automatic:
+                    response = "yes" if len(sim.exposed_goals) > 0 else "no"
+                elif self.debug:
                     response = robot.wait_and_listen_dummy()
                 else:
                     response = robot.wait_and_listen()
@@ -172,6 +200,18 @@ class BlockBuildingGame2:
                 else:
                     robot.say("Ok, go!")
                     turn_number += 1
+        # Success rate
+        success_rate = correct_counter / len(trust_values)
+        print("@@@ SUCCESS RATE: " + str(success_rate) + " @@@")
+        # Plot it
+        import matplotlib.pyplot as plt
+        import numpy as np
+        plt.axhline(y=0, color='k', linestyle='-')
+        plt.plot(np.arange(1, len(trust_values)+1, 1), trust_values)
+        plt.xlabel("Turn")
+        plt.ylabel("Trust")
+        plt.title('Trust dynamics')
+        plt.show()
 
     # Proactive collaboration. If the user is trusted the robot provides the blocks, otherwise it also places them
     def collaborate_with_trust(self, goal, priori_trust, point=False):
@@ -185,7 +225,7 @@ class BlockBuildingGame2:
                     self.interact_with_single_block(block, grasp=not point)
                 else:
                     print("Robot is passing block " + str(block) + " to the user.")
-                    time.sleep(1)
+                    #time.sleep(1)
         else:
             # Positions the blocks in place itself
             for block in remaining_blocks:
@@ -195,14 +235,14 @@ class BlockBuildingGame2:
                     self.collect_and_place(block, position)
                 else:
                     print("Robot is positioning block " + str(block) + " in position " + str(position) + ".")
-                    time.sleep(1)
+                    #time.sleep(1)
 
     # Collects a block from the table and places it in the correct order
     def collect_and_place(self, block, position):
         coordinates = robot.block_coordinates[block]
         robot.action_take(coordinates)
         robot.action_position_block(block, position)
-        time.sleep(1)
+        #time.sleep(1)
         robot.action_home()
 
     # Plays, but without trust evaluations. If demo is True, it skips the listening
