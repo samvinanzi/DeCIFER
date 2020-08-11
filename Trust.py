@@ -165,18 +165,24 @@ class Trust:
         assert 0 <= informant_id < self.informants, "Invalid informant_id argument"
         assert isinstance(correctness, bool), "Correctness argument must be boolean"
         old_trust, old_reliability = self.beliefs[informant_id].is_informant_trustable()
+        # ROGUE CODE ----
+        if (old_reliability >= 0.5 and correctness) or (old_reliability <= -0.5 and not correctness):
+            print("[DEBUG] Trust level reached the limit.")
+            # The repository seems to have a bug: too many queries to a BN will eventually cause a RecursionError.
+            # I can prevent this by recreating the network with the same parameters, e.g. "refreshing" it.
+            self.beliefs[informant_id].refresh_belief()
+            return 0    # todo why does the reliability continue to go up by a small amount after the cutoff?
+        # ---------------
         if correctness:
             new_evidence = Episode.create_positive()
         else:
             new_evidence = Episode.create_negative()
-        if old_reliability >= 0.5 and correctness or old_reliability <= -0.5 and not correctness:
-            return 0
         self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
         self.beliefs[informant_id].update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated
+        # A success by the human is worth double of a success because the robot was the one building
         if not by_robot:
-            self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
-            self.beliefs[informant_id].update_belief(
-                new_evidence.generate_symmetric())  # symmetric episode is generated
+            self.beliefs[informant_id].update_belief(new_evidence)
+            self.beliefs[informant_id].update_belief(new_evidence.generate_symmetric())
         new_trust, new_reliability = self.beliefs[informant_id].is_informant_trustable()
         print("[DEBUG] Trust for informant " + str(informant_id) + " changed from " + str(old_reliability) +
               " to " + str(new_reliability))

@@ -147,6 +147,12 @@ class BeliefNetwork:
             print("[ERROR] update_belief: new data is not an Episode instance.")
             quit(-1)
 
+    # Refreshes the belief network (to prevent RecursionError crashes)
+    def refresh_belief(self):
+        self.parameters = self.dataset.estimate_bn_parameters()
+        self.build()
+        self.calculate_pdf()
+
     # Prints the network parameters
     def print_parameters(self):
         print(self.name + "\n" + str(self.parameters))

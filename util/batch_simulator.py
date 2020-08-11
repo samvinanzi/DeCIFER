@@ -25,7 +25,8 @@ class BatchSimulator:
         self.informants[0] = [False] * self.n_trials
         self.informants[1] = [True] * (self.n_trials // 2) + [False] * (self.n_trials // 2)  # // forces int division
         self.informants[2] = [False] * (self.n_trials // 2) + [True] * (self.n_trials // 2)
-        self.informants[3] = random.sample(self.informants[1], len(self.informants[1]))     # Random
+        self.informants[3] = self.informants[1].copy()
+        random.shuffle(self.informants[3])
 
         self.exposed_actions = []
         self.exposed_goals = []
@@ -63,7 +64,8 @@ class BatchSimulator:
         for trial in exposed:
             self.exposed_actions.extend(trial[0])
             self.exposed_goals.append(trial[1])
+        print("Interacting with informant " + str(id))
 
 
-sim = BatchSimulator(n_trials=10)
-sim.expose_informant(3)
+sim = BatchSimulator(n_trials=100)
+sim.expose_informant(1)
