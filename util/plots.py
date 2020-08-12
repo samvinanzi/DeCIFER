@@ -250,3 +250,72 @@ def multi_block_confusion_matrix():
     plt.ylabel('True label')
     plt.show()
 
+
+# Success rates bar plot for exp3
+def success_rate_bars():
+    labels = ['H1', 'H2', 'H3', 'H4']
+    men_means = [0, .4, .4, .4]
+    women_means = [.66, .82, .82, .5]
+
+    x = np.arange(len(labels))  # the label locations
+    width = 0.35  # the width of the bars
+
+    fig, ax = plt.subplots()
+    rects1 = ax.bar(x - width/2, men_means, width, label='No trust')
+    rects2 = ax.bar(x + width/2, women_means, width, label='Trust')
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Percentage of success')
+    ax.set_title('Success rates')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.legend()
+    ax.set_ylim([0, 1])
+
+    def autolabel(rects):
+        """Attach a text label above each bar in *rects*, displaying its height."""
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate('{}'.format(height),
+                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 3),  # 3 points vertical offset
+                        textcoords="offset points",
+                        ha='center', va='bottom')
+
+    autolabel(rects1)
+    autolabel(rects2)
+    fig.tight_layout()
+    plt.show()
+
+
+# Reads trust values from csv logs
+def read_data_from_csv(id):
+    import csv
+    values = []
+    values.append(0.399999999999999)    # Init trust
+    with open('logs/exp03/csv/h' + str(id) + '.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=';')
+        for row in csv_reader:
+            values.append(round(float(row[4]), 3))
+    return values
+
+
+# Trust dynamics
+def trust_dynamics():
+    fig, axs = plt.subplots(2, 2)
+    fig.suptitle('Trust dynamics')
+
+    axes = [axs[0, 0], axs[0, 1], axs[1, 0], axs[1, 1]]
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
+    x = range(101)
+
+    for i in range(4):
+        y = read_data_from_csv(i)
+        axes[i].plot(x, y, colors[i])
+        axes[i].set_title('H' + str(i+1))
+        axes[i].set(xlabel='Turn', ylabel='Trust value')
+        axes[i].grid()
+        axes[i].set_ylim([-0.15, 0.55])
+        axes[i].axhline(y=0.0, color='k', linestyle='dashed', lw=0.8)
+
+    plt.show()
