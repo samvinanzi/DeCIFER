@@ -61,7 +61,7 @@ class HighLevel(StopThread):
                         output.append([h, e, s, 0])
         return output
 
-    # todo not working
+    # todo not working for some reason
     # Dynamically creates the network with a variable number of observation nodes
     def make_model(self):
         # Create the intention node
@@ -168,7 +168,7 @@ class HighLevel(StopThread):
             # Retrieves a new observation, when available
             observation = self.tq.get()  # Blocking call: if IntentionReading is not producing, HighLevel will pend here
             print("[DEBUG][HL] Read " + str(observation) + " from transition queue")
-            if observation == 0:    # todo do not hard-code
+            if observation == 0:    # todo make it parametrized
                 print("[DEBUG] Dropping neutral value " + str(observation))     # Drops the neutral value
                 continue
             self.observations.append(observation)
@@ -182,7 +182,6 @@ class HighLevel(StopThread):
                 finally:
                     evidence.append(observation)
             # Decodes all the observations acquired
-            print(evidence) # todo delete
             goal, confidence = self.predict_state(evidence)
             # Makes a guess when confident or when already 3 symbols out of 4 have been produced. This avoids being
             # stuck with poor predictions and at least tries a guess.

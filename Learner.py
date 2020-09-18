@@ -290,11 +290,11 @@ class Learner:
         # Perform xmeans clustering on the sole skeletal data
         print("L1 clustering")
         clusters, score, _ = self.xmeans_clustering(self.dataset2d, use_BIC=True)       # L1 clustering
-        # todo debug... remove
-        if len(clusters) != 3:
-            print("[DEBUG] Re-clustering...")
-            self.generate_clusters()
-            return
+        # debug
+        #if len(clusters) != 3:
+        #    print("[DEBUG] Re-clustering...")
+        #    self.generate_clusters()
+        #    return
         print("L1 score: " + str(score))
         final_clusters.extend(clusters)
         '''
@@ -344,7 +344,8 @@ class Learner:
             final_clusters.extend(secondary_clusters)
             parent_cluster.descendants = secondary_clusters
             self.ax = draw_clusters(data2d, pyc_data[1], display_result=False)
-            # todo temporary: plot sub-cluster pictures
+            '''
+            # Plot sub-cluster pictures
             for skeleton in [skeleton for skeleton in self.skeletons if skeleton.id in parent_cluster.skeleton_ids]:
                 im = OffsetImage(skeleton.img, zoom=0.38)
                 coordinate_index = parent_cluster.skeleton_ids.index(skeleton.id)  # Data and skeletons are not aligned, I must fetch the id specifically
@@ -365,6 +366,7 @@ class Learner:
                 plt.scatter(x, y, zorder=3, marker='o', s=10, c=sub_cluster.color, edgecolors='black', linewidths='2')
             plt.show()
             #self.show_clustering()
+            '''
         # Recolor all the clusters
         colors = Cluster.get_colors(len(final_clusters))
         for i in range(0, len(final_clusters)):

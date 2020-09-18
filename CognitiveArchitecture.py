@@ -38,7 +38,7 @@ class CognitiveArchitecture:
         # Initializes LOW-LEVEL
         training_data = self.lowlevel.reload_training() if reload else self.lowlevel.do_training()
         # Initializes HIGH-LEVEL
-        # Strips the value '0' (neutral cluster pose)   # todo make it dynamic
+        # Strips the value '0' (neutral cluster pose)   # todo make it dynamic (parametrize)
         for entry in training_data:
             entry['data'] = [element for element in entry['data'] if element != 0]
         # Uses the training data to build the high-level model parameters

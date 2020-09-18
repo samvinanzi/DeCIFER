@@ -171,7 +171,7 @@ class Trust:
             # The repository seems to have a bug: too many queries to a BN will eventually cause a RecursionError.
             # I can prevent this by recreating the network with the same parameters, e.g. "refreshing" it.
             self.beliefs[informant_id].refresh_belief()
-            return 0    # todo why does the reliability continue to go up by a small amount after the cutoff?
+            return 0
         # ---------------
         if correctness:
             new_evidence = Episode.create_positive()

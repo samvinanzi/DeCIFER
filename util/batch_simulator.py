@@ -68,4 +68,4 @@ class BatchSimulator:
 
 
 sim = BatchSimulator(n_trials=100)
-sim.expose_informant(1)
+sim.expose_informant(0)

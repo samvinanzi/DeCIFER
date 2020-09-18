@@ -91,26 +91,6 @@ class IntentionReader:
             try:
                 # Tries to extract a skeleton
                 skeleton = robot.look_for_skeleton(image_containers, i)
-
-                # todo remove
-                '''
-                #name = skeleton_files[i]
-                try: 
-                    name = skeleton_files[i]
-                except IndexError:
-                    arr = np.asarray(coordinates)
-                    length = arr.shape[0]
-                    sum_x = np.sum(arr[:, 0])
-                    sum_y = np.sum(arr[:, 1])
-                    centroid = sum_x / length, sum_y / length
-                    print("FREE REAL CENTROID: " + str(centroid))
-                    quit(-1)
-                #path = "/home/samuele/Research/PyCharm Projects/DeCIFER/img/experiment2/test-frames/" + name + ".jpg"
-                #skeleton = Skeleton(cv2.imread(path), i)
-                #skeleton = Skeleton(name.origin, name.id)
-                i += 1
-                '''
-
                 self.skeletons.append(skeleton)
                 # Converts that skeleton to a feature array and memorizes it
                 feature = skeleton.as_feature(add_extra=False)

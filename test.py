@@ -297,8 +297,25 @@ print(obs.process(img))
 #obs.display()
 """
 
+''''
 game = BlockBuildingGame2(debug=True, save=False, simulation=True, trust=True)
 game.reload_training()
 game.playing_phase_trust()
 game.end()
+'''
 
+'''
+game.cognition.trust.update_trust(0, True, False)
+print(game.cognition.trust.beliefs[0].is_informant_trustable())
+game.cognition.trust.update_trust(0, True, False)
+print(game.cognition.trust.beliefs[0].is_informant_trustable())
+game.cognition.trust.update_trust(0, True, False)
+print(game.cognition.trust.beliefs[0].is_informant_trustable())
+game.cognition.trust.update_trust(0, False, False)
+print(game.cognition.trust.beliefs[0].is_informant_trustable())
+'''
+
+from util import plots
+
+#plots.success_rate_bars()
+plots.trust_dynamics()
