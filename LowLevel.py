@@ -12,7 +12,7 @@ from IntentionReader import IntentionReader
 class LowLevel:
     def __init__(self, transition_queue, logger, debug=False, offline=False, persist=False):
         self.train = Learner(debug, persist=persist)
-        self.test = IntentionReader(transition_queue, logger)
+        self.test = IntentionReader(debug, transition_queue, logger)
         self.offline = offline
 
     # Performs the training phase and outputs the training data

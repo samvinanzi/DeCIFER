@@ -8,13 +8,16 @@ from robots.AbstractRobot import AbstractRobot
 
 
 class SimulatedRobot(AbstractRobot):
-    def __init__(self):
+    def __init__(self, quiet=False):
         super().__init__()
         self.coordinates = {  # These coordinates are used for looking. Sawyer doesn't need to move his head
             "left": "left",
             "right": "right",
             "center": "center",
         }
+        if not quiet:
+            print("Warning: the simulated robot is operating in QUIET mode.")
+        self.quiet = quiet
 
     def count_blocks(self):
         return 2
@@ -23,7 +26,8 @@ class SimulatedRobot(AbstractRobot):
 
     # Text to Speech
     def say(self, phrase):
-        print("[SAY] " + phrase)
+        if not self.quiet:
+            print("[SAY] " + phrase)
 
     # -- ABSTRACT METHODS --
 

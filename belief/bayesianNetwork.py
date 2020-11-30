@@ -290,6 +290,31 @@ class BeliefNetwork:
 
     # Determine if the informant is to be trusted or not
     def is_informant_trustable(self):
-        reliability = self.get_reliability()    # [-1, 0) is untrustable, [0, +1] is trustable
+        reliability = self.get_opinion()
+        # todo important! This has changed
+        #reliability = self.get_reliability()    # [-1, 0) is untrustable, [0, +1] is trustable
         #return True if reliability >= 0 else False
         return reliability >= 0, reliability
+
+    # This value substitutes the old reliability (trust value)
+    def get_opinion(self):
+        episode_list = self.dataset.episode_dataset
+        positive = 0
+        negative = 0
+        for episode in episode_list:
+            if episode.raw_data[0] == episode.raw_data[3]:
+                positive += 1
+            else:
+                negative += 1
+        # Do not consider symmetrical episodes
+        positive = positive / 2
+        negative = negative / 2
+        # Calculate opinion
+        opinion = (positive - negative) / (positive + negative)
+        return opinion
+
+    def is_informant_trustable_r1(self):
+        be_query = self.bn.query(robot_belief='A', robot_action='A')
+        trust = be_query['informant_action', 'A']
+        opinion = self.get_opinion()
+        return trust >=0.5, opinion

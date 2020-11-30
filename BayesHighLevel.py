@@ -15,7 +15,7 @@ from StopThread import StopThread
 
 
 class HighLevel(StopThread):
-    def __init__(self, transition_queue):
+    def __init__(self, debug, transition_queue):
         StopThread.__init__(self)
         self.model = BayesianNetwork("High-Level Intention Reading")
         self.data = {}
@@ -23,6 +23,7 @@ class HighLevel(StopThread):
         self.goals = []
         self.length = None
         self.internals = {'intention': None, 'observations': {}}
+        self.debug = debug
         self.tq = transition_queue
         self.observations = []
 
@@ -158,7 +159,8 @@ class HighLevel(StopThread):
 
     def run(self):
         self.stop_flag = False  # This is done to avoid unexpected behavior
-        print("[DEBUG] " + self.__class__.__name__ + " thread is running in background.")
+        if self.debug:
+            print("[DEBUG] " + self.__class__.__name__ + " thread is running in background.")
         while not self.stop_flag:
             # First of all, it checkes if LowLevel didn't declare a failure
             found = self.tq.was_goal_inferred()
@@ -167,9 +169,11 @@ class HighLevel(StopThread):
                 continue
             # Retrieves a new observation, when available
             observation = self.tq.get()  # Blocking call: if IntentionReading is not producing, HighLevel will pend here
-            print("[DEBUG][HL] Read " + str(observation) + " from transition queue")
+            if self.debug:
+                print("[DEBUG][HL] Read " + str(observation) + " from transition queue")
             if observation == 0:    # todo make it parametrized
-                print("[DEBUG] Dropping neutral value " + str(observation))     # Drops the neutral value
+                if self.debug:
+                    print("[DEBUG] Dropping neutral value " + str(observation))     # Drops the neutral value
                 continue
             self.observations.append(observation)
             # Builds up the evidence it has, as: [intention (None), observation1, ... , observationN]
@@ -187,7 +191,8 @@ class HighLevel(StopThread):
             # stuck with poor predictions and at least tries a guess.
             if goal is not None and (confidence > 0.5 or evidence[3] is not None):
                 # As soon as it is able to infer a goal, write it down
-                print("[DEBUG] Current inferred goal is: " + str(goal) + " (" + str(confidence) + ")")
+                if self.debug:
+                    print("[DEBUG] Current inferred goal is: " + str(goal) + " (" + str(confidence) + ")")
                 self.tq.write_goal_name(goal)
                 # Reset all observations done until that point
                 self.observations = []

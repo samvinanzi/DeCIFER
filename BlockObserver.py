@@ -122,6 +122,19 @@ class BlockObserver:
         else:
             return False
 
+    # Validates a partial sequence composed of only 2 blocks.
+    def validate_partial_sequence(self):
+        assert self.label is not None, "Invalid operation. Invoke process() first"
+        # Extracts the partial label
+        partial_label = self.label[:2]
+        # Tries to validate the string code against a regexp
+        p = re.compile('([B|O][G|R])|([G|R][B|O])')
+        m = p.match(partial_label)
+        if m:
+            return True
+        else:
+            return False
+
     def display(self):
         cv2.imshow("Processed image", self.img_result)
         cv2.waitKey(0)

@@ -2,6 +2,20 @@
 
 Simulates a batch of experiments. In particular, it simulates different informants with different behaviors.
 
+Informant success rates:
+
+0 (H1) = 0%         |
+1 (H2) = 50% + 0%   |>  deterministic
+2 (H2) = 0% + 50%   |
+
+3 (H4) = 50%        |
+4 (H5) = 80%        |
+5 (H6) = 20%        |
+                    |>  randomized
+6 (H7) = 90%        |
+7 (H8) = 10%        |
+8 (H9) = 60%        |
+
 """
 
 import random
@@ -21,18 +35,37 @@ class BatchSimulator:
             'G': 5
         }
         # Tricker (untrustable) informant behavior (False = builds invalid sequence)
-        self.informants = [[], [], [], []]
+        self.n_informants = 9
+        self.informants = [None] * self.n_informants
         self.informants[0] = [False] * self.n_trials
         self.informants[1] = [True] * (self.n_trials // 2) + [False] * (self.n_trials // 2)  # // forces int division
         self.informants[2] = [False] * (self.n_trials // 2) + [True] * (self.n_trials // 2)
         self.informants[3] = self.informants[1].copy()
-        random.shuffle(self.informants[3])
+        self.randomize(3)
+        # "Natural" behaviors
+        self.informants[4] = [True] * (self.n_trials * 80 // 100) + [False] * (self.n_trials * 20 // 100) # Expert
+        self.randomize(4)
+        self.informants[5] = [True] * (self.n_trials * 20 // 100) + [False] * (self.n_trials * 80 // 100) # Inexpert
+        self.randomize(5)
+        self.informants[6] = [True] * (self.n_trials * 90 // 100) + [False] * (self.n_trials * 10 // 100)  # Inexpert
+        self.randomize(6)
+        self.informants[7] = [True] * (self.n_trials * 10 // 100) + [False] * (self.n_trials * 90 // 100)  # Inexpert
+        self.randomize(7)
+        self.informants[8] = [True] * (self.n_trials * 60 // 100) + [False] * (self.n_trials * 40 // 100)  # Inexpert
+        self.randomize(8)
 
         self.exposed_actions = []
         self.exposed_goals = []
+        self.last_exposed_informant = None
 
         # Generates the simulated actions
         self.build_informant_behavior()
+
+    # Randomizes an informant
+    def randomize(self, id):
+        assert 0 <= id <= self.n_informants, "Invalid id"
+        assert self.informants[id] is not None, "Selected id has not been initialized"
+        random.shuffle(self.informants[id])
 
     # Picks a random goal
     def random_goal(self):
@@ -59,13 +92,22 @@ class BatchSimulator:
 
     # Prepares the actions and goal lists to be consumed from the outside
     def expose_informant(self, id):
-        assert id in range(4), "Exposed informant id must be 0-3"
+        assert id in range(self.n_informants), "Exposed informant id must be 0-" + str(self.n_informants)
         exposed = self.informants[id]
         for trial in exposed:
             self.exposed_actions.extend(trial[0])
             self.exposed_goals.append(trial[1])
+        self.last_exposed_informant = id
         print("Interacting with informant " + str(id))
+
+    # Resets, after a trial. Please NOTE: this will not re-randomize the informants!
+    def reset(self, randomize=False):
+        # Security reset
+        self.exposed_actions = []
+        self.exposed_goals = []
+        self.expose_informant(self.last_exposed_informant)
 
 
 sim = BatchSimulator(n_trials=100)
-sim.expose_informant(0)
+#sim.expose_informant(3)
+pass

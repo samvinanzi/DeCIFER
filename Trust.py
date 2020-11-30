@@ -14,13 +14,14 @@ import os
 
 
 class Trust:
-    def __init__(self, logger):
+    def __init__(self, debug, logger):
         self.training_data = TrainingData()
         self.informants = 0
         self.beliefs = []
         self.time = None
         self.face_frames_captured = 10
         self.load_time()
+        self.debug = debug
         self.log = logger  # Logger that keeps record of what happens, for data analysis purpose
 
     # --- FACE DETECTION AND RECOGNITION ---
@@ -197,6 +198,42 @@ class Trust:
         else:
             # Trust level has not changed
             return 0
+
+    # Updates the trust of a user based on the output of the task
+    def update_trust_r1(self, informant_id, correctness):
+        assert 0 <= informant_id < self.informants, "Invalid informant_id argument"
+        assert isinstance(correctness, bool), "Correctness argument must be boolean"
+        old_trust, old_reliability = self.beliefs[informant_id].is_informant_trustable()
+        # ROGUE CODE ----
+        #if (old_reliability >= 0.5 and correctness) or (old_reliability <= -0.5 and not correctness):
+        #    print("[DEBUG] Trust level reached the limit.")
+            # The repository seems to have a bug: too many queries to a BN will eventually cause a RecursionError.
+            # I can prevent this by recreating the network with the same parameters, e.g. "refreshing" it.
+        #    self.beliefs[informant_id].refresh_belief()
+        #    return 0
+        # ---------------
+        if correctness:
+            new_evidence = Episode.create_positive()
+        else:
+            new_evidence = Episode.create_negative()
+        self.beliefs[informant_id].update_belief(new_evidence)  # updates belief with correct or wrong episode
+        self.beliefs[informant_id].update_belief(new_evidence.generate_symmetric())  # symmetric episode is generated
+        new_trust, new_reliability = self.beliefs[informant_id].is_informant_trustable()
+        if self.debug:
+            print("[DEBUG] Trust for informant " + str(informant_id) + " changed from " + str(old_reliability) +
+                  " to " + str(new_reliability))
+        # Evaluates if the trust has changed after the update to the belief network
+        if old_trust != new_trust:
+            if old_trust is False:
+                # Informant has gained trust
+                return 1
+            else:
+                # Informant has lost trust
+                return -1
+        else:
+            # Trust level has not changed
+            return 0
+
 
     # In the experiment, the trainer must be trusted automatically
     # Equivalent to a Vanderbilt familiarization phase with one trustable informant

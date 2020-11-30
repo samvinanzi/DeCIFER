@@ -20,12 +20,13 @@ from util.batch_simulator import sim
 
 
 class IntentionReader:
-    def __init__(self, transition_queue, logger):
+    def __init__(self, debug, transition_queue, logger):
         self.skeletons = []  # Observed skeletons
         self.offsets = []  # Splits the dataset in sequences
         self.dataset = None  # 20-D dataset
         self.dataset2d = None  # 2-D dataset
         self.intention = Intention()
+        self.debug = debug      # Activate debug messages?
         self.tq = transition_queue    # Event queue read by the upper level
         self.log = logger  # Logger that keeps record of what happens, for data analysis purpose
         self.env = None     # Learner object representing the learned environment
@@ -263,7 +264,8 @@ class IntentionReader:
     def observer_simulator(self, error_simulation=True, automatic=True):
         assert self.env is not None, "Environment must be initialized"
         sampler = ObservationSampler()
-        print("[DEBUG] OBSERVER SIMULATOR is online.")
+        if self.debug:
+            print("[DEBUG] OBSERVER SIMULATOR is online.")
         goal_found = False
         blank_detections = 0
         self.log.new_trial()
@@ -273,17 +275,20 @@ class IntentionReader:
                     cluster_id = int(input('Enter observed cluster id: '))
                 else:
                     cluster_id = sim.exposed_actions.pop(0)
-                    print(cluster_id)
+                    if self.debug:
+                        print(cluster_id)
             else:
                 # This simulates the error rate of the real robot in the virtualized one
                 if not automatic:
                     demonstrated_id = int(input('Enter demonstrated cluster id: '))
                 else:
                     demonstrated_id = sim.exposed_actions.pop(0)
-                    print(demonstrated_id)
+                    if self.debug:
+                        print(demonstrated_id)
                 cluster_id = sampler.sample_block(demonstrated_id)
                 if cluster_id != demonstrated_id:
-                    print("[DEBUG] OBSERVATION ERROR! Robot interpreted " + str(demonstrated_id) + " as " +
+                    if self.debug:
+                        print("[DEBUG] OBSERVATION ERROR! Robot interpreted " + str(demonstrated_id) + " as " +
                           str(cluster_id))
             if len(self.intention.actions) == 0 or self.intention.actions[-1] != cluster_id:
                 blank_detections = 0  # reset
@@ -291,13 +296,15 @@ class IntentionReader:
                 # Notify the new transition to the upper level
                 self.tq.put(cluster_id)
                 self.log.update_latest_time()
-                print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
+                if self.debug:
+                    print("[DEBUG][IR] Wrote " + str(cluster_id) + " to transition queue")
             else:
                 blank_detections += 1
                 # This avoids infinite loops. If N skeletons are detected with no clust transition, then the system
                 # wasn't able to guess the intention. Manually write "unknown" in the transition queue.
                 if blank_detections >= 20:
-                    print("[DEBUG] Unable to infer intentions, sorry :(")
+                    if self.debug:
+                        print("[DEBUG] Unable to infer intentions, sorry :(")
                     self.tq.write_goal_name("failure")
                     blank_detections = 0
             # Checks to see if a goal was found to decide if to stop processing
@@ -307,4 +314,5 @@ class IntentionReader:
                 self.log.update_latest_goal(goal_name)
                 goal_found = True  # Exit condition
         self.intention = Intention()    # Reset todo correct also in the online version?
-        print("[DEBUG] OBSERVER SIMULATOR offline.")
+        if self.debug:
+            print("[DEBUG] OBSERVER SIMULATOR offline.")

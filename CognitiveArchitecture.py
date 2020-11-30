@@ -19,10 +19,11 @@ class CognitiveArchitecture:
         self.tq = TransitionQueue()
         self.log = Logger()
         self.lowlevel = LowLevel(self.tq, self.log, debug, offline, persist)
-        self.highlevel = HighLevel(self.tq)
-        self.trust = Trust(self.log)
+        self.highlevel = HighLevel(debug, self.tq)
+        self.trust = Trust(debug, self.log)
         self.trust_enabled = enable_trust
         self.simulation = simulation
+        self.debug = debug
 
     # Performs the training and learning
     def train(self, reload=False):
@@ -64,7 +65,8 @@ class CognitiveArchitecture:
         # The above process ends when a goal has been inferred. Retrieve it
         current_goal = self.tq.get_goal_name()
         self.tq.write_goal_name(None)   # Reset
-        print("[DEBUG] " + self.__class__.__name__ + " reports goal: " + str(current_goal))
+        if self.debug:
+            print("[DEBUG] " + self.__class__.__name__ + " reports goal: " + str(current_goal))
         return current_goal
 
     # Print the recorded data from the logger

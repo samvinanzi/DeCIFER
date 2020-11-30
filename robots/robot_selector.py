@@ -25,7 +25,7 @@ def get_robot(name):
         return Sawyer()
     elif robot_name == 'SIMULATED':
         print("[DEBUG] Initializing a Simulated robot...")
-        return SimulatedRobot()
+        return SimulatedRobot(quiet=True)
     else:
         print("[ERROR] get_robot: Invalid robot name input!")
         raise InvalidRobotException
